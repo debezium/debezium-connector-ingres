@@ -1,0 +1,29 @@
+#
+# Copyright Debezium Authors
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Cross CI workflow is triggered on a `pull_request` event.
+# It builds the Debezium core before building the CockroachDB connector basing on either the `master` branch or the `pull_request` branch.
+# If a `pull_request` with same branch name is present in the Debezium's upstream core repository, then the core build of this `pull_request`
+# will be based on `pull_request` branch of user's Debezium core repository.
+# Otherwise the core build of this `pull_request` will be based on the `master` branch of Debezium's upstream core repository.
+
+name: Cross Maven CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 3.*
+      - 4.*
+    paths-ignore:
+      - '*.md'
+
+jobs:
+  # Checks that all commits contain sign-offs
+  check-signed-commits:
+    name: Check signed commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: debezium/dbz/.github/actions/check-dco@main
