@@ -1,0 +1,2 @@
+io.debezium.connector.ingres.snapshot.lock.ShareSnapshotLock
+io.debezium.connector.ingres.snapshot.lock.ExclusiveSnapshotLock

@@ -1,0 +1,115 @@
+/*
+ * Copyright Debezium Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.debezium.connector.ingres;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
+import java.time.Instant;
+
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.ingres.cdc.records.HeaderRecord;
+
+import io.debezium.config.CommonConnectorConfig;
+import io.debezium.config.Configuration;
+import io.debezium.connector.SnapshotRecord;
+import io.debezium.relational.TableId;
+import io.debezium.schema.SchemaFactory;
+
+public class SourceInfoTest {
+
+    private SourceInfo source;
+
+    @Before
+    public void beforeEach() {
+        final IngresConnectorConfig connectorConfig = new IngresConnectorConfig(
+                Configuration.create()
+                        .with(CommonConnectorConfig.TOPIC_PREFIX, "serverX")
+                        .with(IngresConnectorConfig.DATABASE_NAME, "c")
+                        .build());
+        source = new SourceInfo(connectorConfig);
+        source.setChangeRecord(new HeaderRecord(0, 1, 0, 0, 0, 0, 0, 0, 0));
+        source.setCommitRecord(new HeaderRecord(0, 2, 0, 0, 0, 0, 0, 0, 0));
+        source.setSnapshot(SnapshotRecord.TRUE);
+        source.setTimestamp(Instant.ofEpochMilli(3000));
+        source.setTableId(new TableId("c", "s", "t"));
+    }
+
+    @Test
+    public void versionIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.DEBEZIUM_VERSION_KEY)).isEqualTo(Module.version());
+    }
+
+    @Test
+    public void connectorIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.DEBEZIUM_CONNECTOR_KEY)).isEqualTo(Module.name());
+    }
+
+    @Test
+    public void serverNameIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.SERVER_NAME_KEY)).isEqualTo("serverX");
+    }
+
+    @Test
+    public void changeHeaderIsPresent() {
+        assertThat(HeaderRecord.deserializeFromBase64(source.struct().getString(SourceInfo.CHANGE_HEADER)).getLsnLow()).isEqualTo(0x01L);
+    }
+
+    @Test
+    public void commitHeaderIsPresent() {
+        assertThat(HeaderRecord.deserializeFromBase64(source.struct().getString(SourceInfo.COMMIT_HEADER)).getLsnLow()).isEqualTo(0x02L);
+    }
+
+    @Test
+    public void snapshotIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.SNAPSHOT_KEY)).isEqualTo("true");
+    }
+
+    @Test
+    public void timestampIsPresent() {
+        assertThat(source.struct().getInt64(SourceInfo.TIMESTAMP_KEY)).isEqualTo(3000);
+    }
+
+    @Test
+    public void tableIdIsPresent() {
+        assertThat(source.struct().getString(SourceInfo.DATABASE_NAME_KEY)).isEqualTo("c");
+        assertThat(source.struct().getString(SourceInfo.SCHEMA_NAME_KEY)).isEqualTo("s");
+        assertThat(source.struct().getString(SourceInfo.TABLE_NAME_KEY)).isEqualTo("t");
+    }
+
+    @Test
+    public void schemaIsCorrect() {
+        final Schema schema = SchemaBuilder.struct()
+                .name("io.debezium.connector.ingres.Source")
+                .version(SchemaFactory.SOURCE_INFO_DEFAULT_SCHEMA_VERSION)
+                .field("version", Schema.STRING_SCHEMA)
+                .field("connector", Schema.STRING_SCHEMA)
+                .field("name", Schema.STRING_SCHEMA)
+                .field("ts_ms", Schema.INT64_SCHEMA)
+                .field("snapshot", SchemaFactory.get().snapshotRecordSchema())
+                .field("db", Schema.STRING_SCHEMA)
+                .field("sequence", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("ts_us", Schema.OPTIONAL_INT64_SCHEMA)
+                .field("ts_ns", Schema.OPTIONAL_INT64_SCHEMA)
+                .field("schema", Schema.STRING_SCHEMA)
+                .field("table", Schema.STRING_SCHEMA)
+                .field("txId", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("begin_header", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("change_header", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("commit_header", Schema.OPTIONAL_STRING_SCHEMA)
+                .build();
+        
+        Schema schema2 = source.struct().schema();
+        
+        for(int i = 0; i < schema.fields().size(); i++) {
+			assertThat(schema.fields().get(i)).isEqualTo(schema2.fields().get(i));
+		}
+        assertThat(source.struct().schema()).isEqualTo(schema);
+    }
+}
