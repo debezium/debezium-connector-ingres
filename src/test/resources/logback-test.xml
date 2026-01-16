@@ -21,10 +21,6 @@
             level="warn" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
-    <logger name="com.informix.stream"
-            level="debug" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
     <logger name="com.ingres.stream"
         level="debug" additivity="false">
     <appender-ref ref="CONSOLE"/>
