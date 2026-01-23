@@ -19,7 +19,7 @@ public class ShareSnapshotLock implements SnapshotLock {
 
     @Override
     public String name() {
-        return IngresConnectorConfig.SnapshotLockingMode.SHARE.getValue();
+        return IngresConnectorConfig.SnapshotLockingMode.SHARED.getValue();
     }
 
     @Override

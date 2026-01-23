@@ -43,6 +43,8 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     protected static final int DEFAULT_PORT = 27839;
 
     protected static final int DEFAULT_CDC_TIMEOUT = 5;
+    
+    public static final String DEFAULT_HEADER_TABLE = "cdc_header_marker";
 
     /**
      * The set of predefined SnapshotMode options or aliases.
@@ -150,7 +152,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
 
         EXCLUSIVE("exclusive"),
 
-        SHARE("share"),
+        SHARED("shared"),
 
         CUSTOM("custom");
 
@@ -333,6 +335,15 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
                     + "This in turns allows the CDC engine to close cleanly as well as indicate to the running program the connection is alive and active.")
             .withValidation(Field::isNonNegativeInteger)
             .withDefault(DEFAULT_CDC_TIMEOUT);
+    
+    public static final Field CDC_MARKER_TABLE = Field.create("cdc.marker.table")
+            .withDisplayName("CDC Marker Table")
+            .withType(ConfigDef.Type.BOOLEAN)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED, 2))
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.MEDIUM)
+            .withDescription("Name of the table used to determine CDC log positioning.")
+            .withDefault(DEFAULT_HEADER_TABLE);
 
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(IngresSourceInfoStructMaker.class.getName());
@@ -374,6 +385,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     private final SnapshotIsolationMode snapshotIsolationMode;
     private final JdbcConfiguration cdcJdbcConfig;
     private final int cdcTimeout;
+    private final String cdcMarkerTable;
 
     private final SnapshotLockingMode snapshotLockingMode;
 
@@ -393,6 +405,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
         this.snapshotLockingMode = SnapshotLockingMode.parse(config.getString(SNAPSHOT_LOCKING_MODE), SNAPSHOT_LOCKING_MODE.defaultValueAsString());
         this.cdcJdbcConfig = JdbcConfiguration.adapt(getJdbcConfig().edit().with(JdbcConfiguration.DATABASE, CDC_DATABASE).build());
         this.cdcTimeout = config.getInteger(CDC_TIMEOUT);
+        this.cdcMarkerTable = config.getString(CDC_MARKER_TABLE);
     }
 
     public String getDatabaseName() {
@@ -419,6 +432,10 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     public int getCdcTimeout() {
         return cdcTimeout;
     }
+    
+    public String getMarkerTable() {
+		return cdcMarkerTable;
+	}
 
     @Override
     protected SourceInfoStructMaker<? extends AbstractSourceInfo> getSourceInfoStructMaker(Version version) {
@@ -430,7 +447,6 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
         return new HistoryRecordComparator() {
             @Override
             protected boolean isPositionAtOrBefore(Document recorded, Document desired) {
-            	System.out.println("Testing HistoryRecordComparator.isPositionAtOrBefore: recorded=" + recorded + ", desired=" + desired);
             	HeaderRecord r = HeaderRecord.deserializeFromBase64(recorded.getString(SourceInfo.CHANGE_HEADER));
             	HeaderRecord d = HeaderRecord.deserializeFromBase64(desired.getString(SourceInfo.CHANGE_HEADER));
                 return r.compareTo(d) < 1;

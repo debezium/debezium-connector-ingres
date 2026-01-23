@@ -42,6 +42,7 @@ import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.util.Clock;
+import io.debezium.util.Stopwatch;
 
 public class IngresStreamingChangeEventSource implements StreamingChangeEventSource<IngresPartition, IngresOffsetContext> {
 
@@ -114,9 +115,6 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
         });
 
         TxLogPosition lastPosition = offsetContext.getChangePosition();
-        HeaderRecord lastCommitLsn = lastPosition.getCommitRecord();
-        HeaderRecord lastBeginLsn = lastPosition.getBeginRecord();
-        HeaderRecord beginLsn = lastBeginLsn != null ? lastBeginLsn : lastCommitLsn;
         
         HeaderRecord lastBeginRecord = lastPosition.getBeginRecord();
         HeaderRecord lastChangeRecord = lastPosition.getChangeRecord();
@@ -126,8 +124,8 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
         	/*
              * Recover Stage. In this stage, we replay event from 'beginLsn' to 'commitLsn', and rebuild the transactionCache.
              */
-            if (beginLsn != null && beginLsn.compareTo(lastCommitLsn) < 0) {
-                LOGGER.info("Begin recover: from lastBeginLsn='{}' to lastCommitLsn='{}'", lastBeginLsn, lastCommitLsn);
+            if (beginRecord != null && beginRecord.compareTo(lastCommitRecord) < 0) {
+                LOGGER.info("Begin recover: from lastBeginRecord='{}' to lastCommitRecord='{}'", lastBeginRecord, lastCommitRecord);
                 boolean recovering = true;
                 while (context.isRunning() && recovering) {
 
@@ -153,26 +151,26 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
 						break;
 					case TRANSACTION:
 						CDCTransaction transactionRecord = (CDCTransaction)streamRecord;
-						HeaderRecord commitLsn = transactionRecord.getEndRecord().getHeader();
-	                    if (commitLsn.compareTo(lastCommitLsn) < 0) {
-	                        LOGGER.info("Skipping transaction with id: '{}' since commitLsn='{}' < lastCommitLsn='{}'",
-	                                transactionRecord.getTransactionId(), commitLsn, lastCommitLsn);
+						HeaderRecord commitRecord = transactionRecord.getEndRecord().getHeader();
+	                    if (commitRecord.compareTo(lastCommitRecord) < 0) {
+	                        LOGGER.info("Skipping transaction with id: '{}' since commitRecord='{}' < lastCommitRecord='{}'",
+	                                transactionRecord.getTransactionId(), commitRecord, lastCommitRecord);
 	                        break;
 	                    }
-	                    if (commitLsn.equals(lastCommitLsn) && lastChangeRecord.equals(lastCommitLsn)) {
-	                        LOGGER.info("Skipping transaction with id: '{}' since commitLsn='{}' == lastCommitLsn='{}' and lastChangeLsn='{}' == lastCommitLsn",
-	                                transactionRecord.getTransactionId(), commitLsn, lastCommitLsn, lastChangeRecord);
+	                    if (commitRecord.equals(lastCommitRecord) && lastChangeRecord.equals(lastCommitRecord)) {
+	                        LOGGER.info("Skipping transaction with id: '{}' since commitRecord='{}' == lastCommitLsn='{}' and lastChangeRecord='{}' == lastCommitRecord",
+	                                transactionRecord.getTransactionId(), commitRecord, lastCommitRecord, lastChangeRecord);
 	                        break;
 	                    }
-	                    if (commitLsn.compareTo(lastCommitLsn) > 0) {
-	                        LOGGER.info("Recover finished: from lastBeginLsn='{}' to lastCommitLsn='{}', current Lsn='{}'",
-	                                lastBeginLsn, lastCommitLsn, transactionRecord.getBeginRecord().getHeader());
+	                    if (commitRecord.compareTo(lastCommitRecord) > 0) {
+	                        LOGGER.info("Recover finished: from lastBeginRecord='{}' to lastCommitRecord='{}', currentRecord='{}'",
+	                                lastBeginRecord, lastCommitRecord, transactionRecord.getBeginRecord().getHeader());
 	                        recovering = false;
 	                    }
 	                    handleTransaction(engine, partition, offsetContext, transactionRecord, recovering);
 						break;
 					default:
-						LOGGER.error(RECEIVED_GENERIC_RECORD, streamRecord, 0);
+						LOGGER.warn(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, 0);
 						break;
                     }
                 }
@@ -201,9 +199,6 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     break;
                 case TIMEOUT:
                     LOGGER.trace(RECEIVED_GENERIC_RECORD, streamRecord, 0);
-                    break;
-                case ERROR:
-                    LOGGER.error(RECEIVED_GENERIC_RECORD, streamRecord, 0);
                     break;
                 default:
                     LOGGER.warn(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, 0);
@@ -268,25 +263,27 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                                    IngresOffsetContext offsetContext, CDCTransaction transactionRecord,
                                    boolean recover)
             throws InterruptedException, CDCStreamException {
-        long tStart = System.nanoTime();
+    	Stopwatch stopwatchOverall = Stopwatch.reusable();
+        stopwatchOverall.start();
 
         HeaderRecord lastChangeRecord = offsetContext.getChangePosition().getChangeRecord();
         BeginRecord beginRecord = transactionRecord.getBeginRecord();
         OperationsRecord endRecord = transactionRecord.getEndRecord();
         long transactionId = beginRecord.getHeader().getTransactionId();
 
-        long start = System.nanoTime();
-
+        Stopwatch stopwatch = Stopwatch.reusable();
+        stopwatch.start();
+        
         LocalDateTime beginTs = beginRecord.getTime();
         HeaderRecord beginHeader = beginRecord.getHeader();
         HeaderRecord endHeader = endRecord.getHeader();
         HeaderRecord restartHeader = engine.getLowestHeaderRecord().orElse(endHeader);
-        HeaderRecord restartHeader2 = (beginHeader.compareTo(restartHeader) <= 0)
+        restartHeader = (beginHeader.compareTo(restartHeader) <= 0)
 				? beginHeader
 				: restartHeader;
         
         if (!recover) {
-            updateChangePosition(offsetContext, endHeader, beginHeader, transactionId, restartHeader2);
+            updateChangePosition(offsetContext, endHeader, beginHeader, transactionId, restartHeader);
             dispatcher.dispatchTransactionStartedEvent(
                     partition,
                     String.valueOf(transactionId),
@@ -294,10 +291,8 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     beginTs.atZone(ZoneId.systemDefault()).toInstant());
         }
 
-        long end = System.nanoTime();
-
         LOGGER.info("Received {} Time [{}] Owner [{}] ElapsedT [{}ms]",
-                beginRecord, beginTs, beginRecord.getOwner(), (end - start) / 1000000d);
+                beginRecord, beginTs, beginRecord.getOwner(), stop(stopwatch));
 
         if (RecordType.COMMIT.equals(endRecord.getType())) {
             HeaderRecord commitHeader = endRecord.getHeader();
@@ -306,7 +301,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
             Map<String, SqlData> before = null;
             Map<String, SqlData> after = null;
             for (DataRecord streamRecord : transactionRecord.getDataRecords()) {
-                start = System.nanoTime();
+                stopwatch.start();
                 before = after = null;
                 HeaderRecord changeHeader = streamRecord.getHeader();
 
@@ -324,68 +319,60 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     case INSERT:
                         after = streamRecord.unwrap(LoggedDataRecord.class).getAfterImage().asMap();
                         handleOperation(partition, offsetContext, Operation.CREATE, before, after, tableId.orElseThrow());
-                        end = System.nanoTime();
 
                         LOGGER.debug("Received {} ElapsedT [{}ms] Data After [{}]",
-                                streamRecord, (end - start) / 1000000d, after);
+                                streamRecord, stop(stopwatch), after);
                         break;
                     case UPDATE:
                         before = streamRecord.unwrap(LoggedDataRecord.class).getBeforeImage().asMap();
                         after = streamRecord.unwrap(LoggedDataRecord.class).getAfterImage().asMap();
                         handleOperation(partition, offsetContext, Operation.UPDATE, before, after, tableId.orElseThrow());
-                        end = System.nanoTime();
 
                         LOGGER.debug("Received {} ElapsedT [{}ms] Data Before [{}]",
-                                streamRecord, (end - start) / 1000000d, before);
+                                streamRecord, stop(stopwatch), before);
                         break;
                     case DELETE:
                         before = streamRecord.unwrap(LoggedDataRecord.class).getBeforeImage().asMap();
                         handleOperation(partition, offsetContext, Operation.DELETE, before, after, tableId.orElseThrow());
 
-                        end = System.nanoTime();
                         LOGGER.debug("Received {} ElapsedT [{}ms] Data Before [{}]",
-                                streamRecord, (end - start) / 1000000d, before);
+                                streamRecord, stop(stopwatch), before);
                         break;
                     case TRUNCATE:
                     	TruncateRecord truncateRecord = streamRecord.unwrap(TruncateRecord.class);
                     	tableId = Optional.of(new TableId(this.dbConnection.getRealDatabaseName(), truncateRecord.getOwner(), truncateRecord.getTableName()));
                         handleOperation(partition, offsetContext, Operation.TRUNCATE, before, after, tableId.orElseThrow());
                         
-                        end = System.nanoTime();
-                        LOGGER.debug(RECEIVED_GENERIC_RECORD, streamRecord, (end - start) / 1000000d);
+                        LOGGER.debug(RECEIVED_GENERIC_RECORD, streamRecord, stop(stopwatch));
                         break;
                     case RELATION:
                     case TIMEOUT:
-                        end = System.nanoTime();
-                        LOGGER.debug(RECEIVED_GENERIC_RECORD, streamRecord, (end - start) / 1000000d);
+                        LOGGER.debug(RECEIVED_GENERIC_RECORD, streamRecord, stop(stopwatch));
                         break;
                     default:
-                        end = System.nanoTime();
-                        LOGGER.debug(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, (end - start) / 1000000d);
+                        LOGGER.debug(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, stop(stopwatch));
                 }
             }
 
-            start = System.nanoTime();
+            stopwatch.start();
             updateChangePosition(offsetContext, commitHeader, commitHeader, transactionId, restartHeader);
             dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, commitTime.atZone(ZoneId.systemDefault()).toInstant());
-
-            end = System.nanoTime();
+            
 
             LOGGER.debug("Received {} Time [{}] Owner [{}] ElapsedT [{}ms]",
-                    endRecord, commitTime, beginRecord.getOwner(), (end - start) / 1000000d);
+                    endRecord, commitTime, beginRecord.getOwner(), stop(stopwatch));
 
             LOGGER.debug("Handle Transaction Events [{}], ElapsedT [{}ms]",
-                    transactionRecord.getDataRecords().size(), (end - tStart) / 1000000d);
+                    transactionRecord.getDataRecords().size(), stop(stopwatchOverall));
         }
-        if (RecordType.ROLLBACK.equals(endRecord.getType())) {
+        else if (RecordType.ROLLBACK.equals(endRecord.getType())) {
 
             if (!recover) {
                 updateChangePosition(offsetContext, endHeader, endHeader, transactionId, restartHeader);
                 offsetContext.getTransactionContext().endTransaction();
             }
-
-            end = System.nanoTime();
-            LOGGER.debug(RECEIVED_GENERIC_RECORD, endRecord, (end - start) / 1000000d);
+            stopwatchOverall.stop();
+            LOGGER.debug(RECEIVED_GENERIC_RECORD, endRecord, stop(stopwatch));
         }
     }
 
@@ -437,4 +424,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                         clock, connectorConfig));
     }
 
+    private long stop(Stopwatch stopwatch) {
+		return stopwatch.stop().durations().statistics().getTotal().toMillis();
+	}
 }

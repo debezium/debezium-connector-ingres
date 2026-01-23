@@ -6,6 +6,7 @@
 package io.debezium.connector.ingres;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
@@ -148,31 +149,31 @@ public class IngresSnapshotChangeEventSource extends RelationalSnapshotChangeEve
             	DataSource ds = jdbcConnection.datasource();
             	try(Connection c = ds.getConnection()) {
         			try(Statement s = c.createStatement()) {
-        				s.execute("CREATE TABLE IF NOT EXISTS cdc_header_marker (c char(20))");
-        				TableId markerTable = jdbcConnection.readTableNames(null, null, "cdc_header_marker", null).iterator().next();
+        				String tableName = connectorConfig.getMarkerTable();
+        				s.execute("CREATE TABLE IF NOT EXISTS " + tableName + " (c char(20))");
+        				TableId markerTable = jdbcConnection.readTableNames(null, null, tableName, null).iterator().next();
         				if(markerTable == null) {
 							throw new SQLException("Ingres Connector failed to detect CDC header marker table.");
 						}
         				try(CDCLogStream stream = CDCLogStream.builder(ds)
         						.timeout(1)
         						.publication(new CDCPublication()
-        								.name("cdc_header_marker")
-        								.table("cdc_header_marker")
+        								.name(tableName)
+        								.table(tableName)
         								.owner(markerTable.schema())
         						)
         						.build()) {
         					
         					String uuid = UUID.randomUUID().toString();
         					
-        					s.execute("INSERT INTO cdc_header_marker values(" + "'" + uuid + "'" + ")");
-        					s.execute("DELETE FROM cdc_header_marker WHERE c = " + "'" + uuid + "'");
+        					s.execute("INSERT INTO " + tableName + " values(" + "'" + uuid + "'" + ")");
+        					s.execute("DELETE FROM " + tableName + " WHERE c = " + "'" + uuid + "'");
         					currentCommitRecord = Stream.generate(stream)
         					.limit(5)
         					.filter(r -> r instanceof CommitRecord)
         					.findFirst().orElseThrow(() -> new SQLException("Ingres Connector failed to read CDC header marker."))
         					.unwrap(CommitRecord.class)
         					.getHeader();
-        					
         				}
         				//FIXME: find a way to drop this and ignore this table in the schema detection
         				s.execute("DROP TABLE IF EXISTS cdc_header_marker");

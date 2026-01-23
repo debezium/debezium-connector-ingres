@@ -6,8 +6,6 @@
 package io.debezium.connector.ingres;
 
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
@@ -21,8 +19,6 @@ import org.apache.kafka.connect.data.Struct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.DebeziumException;
-import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Column;
 import io.debezium.relational.DefaultValueConverter;
 import io.debezium.relational.ValueConverter;
@@ -143,12 +139,6 @@ public class IngresDefaultValueConverter implements DefaultValueConverter {
 
     public static DefaultValueMapper booleanDefaultValueMapper() {
         return (column, value) -> {
-            if ("t".equals(value.trim())) {
-                return true;
-            }
-            else if ("f".equals(value.trim())) {
-                return false;
-            }
             return Boolean.parseBoolean(value.trim());
         };
     }
@@ -162,58 +152,7 @@ public class IngresDefaultValueConverter implements DefaultValueConverter {
 
     private static DefaultValueMapper castTemporalFunctionCall(IngresConnection connection, int jdbcType) {
         return (column, value) -> {
-            if ("TODAY".equalsIgnoreCase(value.trim())) {
-                // If the column is optional, the default value is ignored
-                return column.isOptional() ? null : Date.valueOf("1970-01-01");
-            }
-            else if ("CURRENT".equalsIgnoreCase(value.trim()) || "SYSDATE".equalsIgnoreCase(value.trim())) {
-                String[] typeExpr = column.typeExpression().trim().split("[\\s()]");
-                StringBuilder dateTimeStr = new StringBuilder("1970-01-01 00:00:00");
-                if ("DATETIME".equalsIgnoreCase(typeExpr[0])) {
-                    int scale;
-                    switch (typeExpr.length) {
-                        case 5:
-                            scale = Integer.parseInt(typeExpr[4]);
-                            break;
-                        case 4:
-                            scale = "FRACTION".equalsIgnoreCase(typeExpr[3]) ? 3 : 0;
-                            break;
-                        case 2:
-                            scale = Integer.parseInt(typeExpr[1]);
-                            break;
-                        case 1:
-                        default:
-                            scale = 3;
-                    }
-                    if (scale > 0) {
-                        dateTimeStr.append('.').append("0".repeat(scale));
-                    }
-                }
-                String defaultVal = dateTimeStr.toString();
-                // If the column is optional, the default value is ignored
-                return column.isOptional() ? null : Timestamp.valueOf(defaultVal);
-            }
-            else {
-                switch (jdbcType) {
-                    case Types.DATE:
-                        return JdbcConnection.querySingleValue(
-                                connection.connection(),
-                                "SELECT DATE('" + value + "') FROM sysmaster:sysdual",
-                                st -> {
-                                },
-                                rs -> rs.getDate(1));
-                    case Types.TIME:
-                    case Types.TIMESTAMP:
-                        return JdbcConnection.querySingleValue(
-                                connection.connection(),
-                                "SELECT DATETIME(" + value + ") " + column.typeExpression().substring(9).toUpperCase() + " FROM sysmaster:sysdual",
-                                st -> {
-                                },
-                                rs -> rs.getTimestamp(1));
-                    default:
-                        throw new DebeziumException("Unexpected JDBC type '" + jdbcType + "' for default value resolution: " + value);
-                }
-            }
+        	return value;
         };
     }
 

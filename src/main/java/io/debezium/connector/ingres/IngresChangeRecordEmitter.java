@@ -76,7 +76,7 @@ public class IngresChangeRecordEmitter extends RelationalChangeRecordEmitter<Ing
                         .map(Field::name)
                         .map(data::get)
                         // SqlNull does not work with calls to getObject(), so we need to handle it separately
-                        .map(irt -> propagate(irt.getClass().equals(SqlNull.class) ? () -> null : irt::getObject)).toArray();
+                        .map(irt -> propagate(irt instanceof SqlNull ? () -> null : irt::getObject)).toArray();
     }
 
     private static <X> X propagate(Callable<X> callable) {
