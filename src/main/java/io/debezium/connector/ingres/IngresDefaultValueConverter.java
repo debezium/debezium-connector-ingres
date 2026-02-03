@@ -152,7 +152,7 @@ public class IngresDefaultValueConverter implements DefaultValueConverter {
 
     private static DefaultValueMapper castTemporalFunctionCall(IngresConnection connection, int jdbcType) {
         return (column, value) -> {
-        	return value;
+            return value;
         };
     }
 

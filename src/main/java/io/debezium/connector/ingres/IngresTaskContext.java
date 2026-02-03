@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.ingres;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.common.CdcSourceTaskContext;
 
 /**
@@ -13,8 +14,8 @@ import io.debezium.connector.common.CdcSourceTaskContext;
  * @author Jiri Pechanec, Lars M Johansson
  *
  */
-public class IngresTaskContext extends CdcSourceTaskContext {
-    public IngresTaskContext(IngresConnectorConfig config, IngresDatabaseSchema schema) {
-        super(config, config.getCustomMetricTags(), schema::tableIds);
+public class IngresTaskContext extends CdcSourceTaskContext<IngresConnectorConfig> {
+    public IngresTaskContext(Configuration rawConfig, IngresConnectorConfig config) {
+        super(rawConfig, config, config.getCustomMetricTags());
     }
 }

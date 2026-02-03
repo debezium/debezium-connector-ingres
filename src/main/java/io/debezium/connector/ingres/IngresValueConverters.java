@@ -139,10 +139,10 @@ public class IngresValueConverters extends JdbcValueConverters {
     protected Object convertString(Column column, Field fieldDefn, Object data) {
         if (data instanceof Clob) {
             return convertValue(column, fieldDefn, data, "", (receiver) -> {
-            	Clob clob = (Clob) data;
-            	
+                Clob clob = (Clob) data;
+
                 try {
-                	BufferedReader reader = new BufferedReader(clob.getCharacterStream());
+                    BufferedReader reader = new BufferedReader(clob.getCharacterStream());
                     receiver.deliver(reader.lines().collect(Collectors.joining(System.lineSeparator())));
                 }
                 catch (SQLException e) {
@@ -150,11 +150,12 @@ public class IngresValueConverters extends JdbcValueConverters {
                             ": class=" + data.getClass(), e);
                 }
                 finally {
-                	try {
-						clob.free();
-					} catch (SQLException e) {
-						throw new RuntimeException("Error freeing CLOB", e);
-					}
+                    try {
+                        clob.free();
+                    }
+                    catch (SQLException e) {
+                        throw new RuntimeException("Error freeing CLOB", e);
+                    }
                 }
             });
         }

@@ -29,8 +29,8 @@ public class ExclusiveSnapshotLock implements SnapshotLock {
 
     @Override
     public Optional<String> tableLockingStatement(Duration lockTimeout, String tableId) {
-    	return Optional.empty();
-    	//FIXME implement exclusive locking
-        //return Optional.of(String.format("SET LOCKMODE ON %s WHERE level=table, READLOCK = EXCLUSIVE", tableId));
+        return Optional.empty();
+        // FIXME implement exclusive locking
+        // return Optional.of(String.format("SET LOCKMODE ON %s WHERE level=table, READLOCK = EXCLUSIVE", tableId));
     }
 }

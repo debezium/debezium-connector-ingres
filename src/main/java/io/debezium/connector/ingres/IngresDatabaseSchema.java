@@ -8,6 +8,7 @@ package io.debezium.connector.ingres;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.HistorizedRelationalDatabaseSchema;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -31,8 +32,8 @@ public class IngresDatabaseSchema extends HistorizedRelationalDatabaseSchema {
     private static final Logger LOGGER = LoggerFactory.getLogger(IngresDatabaseSchema.class);
 
     public IngresDatabaseSchema(IngresConnectorConfig connectorConfig, TopicNamingStrategy<TableId> topicNamingStrategy,
-                                  IngresValueConverters valueConverters, SchemaNameAdjuster schemaNameAdjuster,
-                                  IngresConnection connection) {
+                                IngresValueConverters valueConverters, SchemaNameAdjuster schemaNameAdjuster,
+                                IngresConnection connection, CustomConverterRegistry customConverterRegistry, IngresTaskContext taskContext) {
         super(
                 connectorConfig,
                 topicNamingStrategy,
@@ -42,12 +43,12 @@ public class IngresDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                         valueConverters,
                         new IngresDefaultValueConverter(valueConverters, connection),
                         schemaNameAdjuster,
-                        connectorConfig.customConverterRegistry(),
+                        customConverterRegistry,
                         connectorConfig.getSourceInfoStructMaker().schema(),
                         connectorConfig.getFieldNamer(),
                         connectorConfig.multiPartitionMode()),
                 true,
-                connectorConfig.getKeyMapper());
+                connectorConfig.getKeyMapper(), taskContext);
     }
 
     @Override

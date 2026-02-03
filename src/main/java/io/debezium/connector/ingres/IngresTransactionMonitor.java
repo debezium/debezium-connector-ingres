@@ -19,8 +19,8 @@ import io.debezium.schema.SchemaNameAdjuster;
 
 public class IngresTransactionMonitor extends TransactionMonitor {
     public IngresTransactionMonitor(CommonConnectorConfig connectorConfig, EventMetadataProvider eventMetadataProvider,
-                                      SchemaNameAdjuster schemaNameAdjuster, BlockingConsumer<SourceRecord> sender,
-                                      String topicName) {
+                                    SchemaNameAdjuster schemaNameAdjuster, BlockingConsumer<SourceRecord> sender,
+                                    String topicName) {
         super(connectorConfig, eventMetadataProvider, schemaNameAdjuster, sender, topicName);
     }
 

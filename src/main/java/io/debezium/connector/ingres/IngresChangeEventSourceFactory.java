@@ -35,10 +35,10 @@ public class IngresChangeEventSourceFactory implements ChangeEventSourceFactory<
     private final SnapshotterService snapshotterService;
 
     public IngresChangeEventSourceFactory(IngresConnectorConfig configuration,
-                                            MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory,
-                                            MainConnectionProvidingConnectionFactory<IngresConnection> cdcConnectionFactory,
-                                            ErrorHandler errorHandler, EventDispatcher<IngresPartition, TableId> dispatcher,
-                                            Clock clock, IngresDatabaseSchema schema, SnapshotterService snapshotterService) {
+                                          MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory,
+                                          MainConnectionProvidingConnectionFactory<IngresConnection> cdcConnectionFactory,
+                                          ErrorHandler errorHandler, EventDispatcher<IngresPartition, TableId> dispatcher,
+                                          Clock clock, IngresDatabaseSchema schema, SnapshotterService snapshotterService) {
         this.configuration = configuration;
         this.connectionFactory = connectionFactory;
         this.cdcConnectionFactory = cdcConnectionFactory;
@@ -51,7 +51,7 @@ public class IngresChangeEventSourceFactory implements ChangeEventSourceFactory<
 
     @Override
     public SnapshotChangeEventSource<IngresPartition, IngresOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener<IngresPartition> snapshotProgressListener,
-                                                                                                            NotificationService<IngresPartition, IngresOffsetContext> notificationService) {
+                                                                                                        NotificationService<IngresPartition, IngresOffsetContext> notificationService) {
         return new IngresSnapshotChangeEventSource(
                 configuration,
                 connectionFactory,
@@ -77,19 +77,20 @@ public class IngresChangeEventSourceFactory implements ChangeEventSourceFactory<
 
     @Override
     public Optional<IncrementalSnapshotChangeEventSource<IngresPartition, ? extends DataCollectionId>> getIncrementalSnapshotChangeEventSource(IngresOffsetContext offsetContext,
-                                                                                                                                                 SnapshotProgressListener<IngresPartition> snapshotProgressListener,
-                                                                                                                                                 DataChangeEventListener<IngresPartition> dataChangeEventListener,
-                                                                                                                                                 NotificationService<IngresPartition, IngresOffsetContext> notificationService) {
-
+                                                                                                                                               SnapshotProgressListener<IngresPartition> snapshotProgressListener,
+                                                                                                                                               DataChangeEventListener<IngresPartition> dataChangeEventListener,
+                                                                                                                                               NotificationService<IngresPartition, IngresOffsetContext> notificationService) {
+        if (configuration.getSignalingDataCollectionIds().isEmpty()) {
+            return Optional.empty();
+        }
         // If no data collection id is provided, don't return an instance as the implementation requires
         // that a signal data collection id be provided to work.
-        return Optional.ofNullable(configuration.getSignalingDataCollectionId())
-                .map(s -> new SignalBasedIncrementalSnapshotChangeEventSource<>(
-                        configuration,
-                        connectionFactory.mainConnection(),
-                        dispatcher, schema, clock,
-                        snapshotProgressListener,
-                        dataChangeEventListener,
-                        notificationService));
+        return Optional.of(new SignalBasedIncrementalSnapshotChangeEventSource<>(
+                configuration,
+                connectionFactory.mainConnection(),
+                dispatcher, schema, clock,
+                snapshotProgressListener,
+                dataChangeEventListener,
+                notificationService));
     }
 }

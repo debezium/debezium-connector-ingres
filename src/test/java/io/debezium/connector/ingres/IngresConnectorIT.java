@@ -10,7 +10,8 @@ import static io.debezium.connector.ingres.util.TestHelper.TYPE_NAME_PARAMETER_K
 import static io.debezium.connector.ingres.util.TestHelper.TYPE_SCALE_PARAMETER_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -25,11 +26,9 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
@@ -46,13 +45,11 @@ import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.async.AbstractAsyncEngineConnectorTest;
 import io.debezium.jdbc.JdbcValueConverters.DecimalMode;
-import io.debezium.junit.ConditionalFail;
 import io.debezium.junit.Flaky;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.relational.RelationalDatabaseSchema;
 import io.debezium.relational.history.MemorySchemaHistory;
 import io.debezium.schema.DatabaseSchema;
-import junit.framework.TestCase;
 
 /**
  * Integration test for the Debezium Ingres connector.
@@ -61,12 +58,9 @@ import junit.framework.TestCase;
 @Flaky("DBZ-8114")
 public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
-    @Rule
-    public TestRule conditionalFail = new ConditionalFail();
-
     private IngresConnection connection;
 
-    @Before
+    @BeforeEach
     public void before() throws SQLException {
         connection = TestHelper.testConnection();
         connection.execute(
@@ -90,7 +84,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         Print.enable();
     }
 
-    @After
+    @AfterEach
     public void after() throws SQLException {
         /*
          * Since all DDL operations are forbidden during Ingres CDC,
@@ -657,11 +651,11 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, snapshotMode)
                 .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, "dt_table")
                 .with(IngresConnectorConfig.COLUMN_INCLUDE_LIST,
-                	TestHelper.TEST_SCHEMA + ".dt_table.id," 
-                		+ TestHelper.TEST_SCHEMA + ".dt_table.c1,"
-                		+ TestHelper.TEST_SCHEMA + ".dt_table.c2,"
-                		+ TestHelper.TEST_SCHEMA + ".dt_table.c3a,"
-                		+ TestHelper.TEST_SCHEMA + ".dt_table.c3b")
+                        TestHelper.TEST_SCHEMA + ".dt_table.id,"
+                                + TestHelper.TEST_SCHEMA + ".dt_table.c1,"
+                                + TestHelper.TEST_SCHEMA + ".dt_table.c2,"
+                                + TestHelper.TEST_SCHEMA + ".dt_table.c3a,"
+                                + TestHelper.TEST_SCHEMA + ".dt_table.c3b")
                 .build();
 
         final int expectedRecords;
@@ -808,7 +802,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         }
 
         start(IngresConnector.class, config, record -> {
-        	String name = TestHelper.getSchemaPrefix() + "tablea.Envelope";
+            String name = TestHelper.getSchemaPrefix() + "tablea.Envelope";
             if (!name.equals(record.valueSchema().name())) {
                 return false;
             }
@@ -1169,11 +1163,11 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         SourceRecords sourceRecords = consumeRecordsByTopic(expectedRecordCount);
         assertThat(sourceRecords.recordsForTopic("testdb.informix.always_snapshot")).hasSize(expectedRecordCount);
         Struct struct = (Struct) ((Struct) sourceRecords.allRecordsInOrder().get(0).value()).get(FieldName.AFTER);
-        TestCase.assertEquals(1, struct.get("id"));
-        TestCase.assertEquals("Test1", struct.get("data"));
+        assertEquals(1, struct.get("id"));
+        assertEquals("Test1", struct.get("data"));
         struct = (Struct) ((Struct) sourceRecords.allRecordsInOrder().get(1).value()).get(FieldName.AFTER);
-        TestCase.assertEquals(2, struct.get("id"));
-        TestCase.assertEquals("Test2", struct.get("data"));
+        assertEquals(2, struct.get("id"));
+        assertEquals("Test2", struct.get("data"));
 
         stopConnector();
         assertConnectorNotRunning();
@@ -1194,11 +1188,11 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         // Check we get up-to-date data in the snapshot.
         assertThat(sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot"))).hasSize(expectedRecordCount);
         struct = (Struct) ((Struct) sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot")).get(0).value()).get(FieldName.AFTER);
-        TestCase.assertEquals(3, struct.get("id"));
-        TestCase.assertEquals("Test3", struct.get("data"));
+        assertEquals(3, struct.get("id"));
+        assertEquals("Test3", struct.get("data"));
         struct = (Struct) ((Struct) sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot")).get(1).value()).get(FieldName.AFTER);
-        TestCase.assertEquals(2, struct.get("id"));
-        TestCase.assertEquals("Test2", struct.get("data"));
+        assertEquals(2, struct.get("id"));
+        assertEquals("Test2", struct.get("data"));
     }
 
     @Test

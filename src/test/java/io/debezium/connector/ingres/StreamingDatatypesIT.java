@@ -7,10 +7,9 @@ package io.debezium.connector.ingres;
 
 import java.sql.SQLException;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 
 import io.debezium.config.Configuration;
 import io.debezium.config.Configuration.Builder;
@@ -26,17 +25,23 @@ import io.debezium.util.Testing;
  */
 public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
 
-    @Rule
-    public TestName name = new TestName();
+    private String testMethodName;
 
-    @BeforeClass
+    @BeforeAll
     public static void beforeClass() throws SQLException {
         AbstractIngresDatatypesTest.beforeClass();
+        createTables();
+        insertStringTypes();
+        insertFpTypes();
+        insertIntTypes();
+        insertTimeTypes();
+        insertClobTypes();
     }
 
-    @Before
-    public void before() throws Exception {
-    	createTables();
+    @BeforeEach
+    public void before(TestInfo testInfo) throws Exception {
+        testMethodName = testInfo.getTestMethod().get().getName();
+
         init(TemporalPrecisionMode.ADAPTIVE);
     }
 
@@ -53,7 +58,7 @@ public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
         start(IngresConnector.class, config);
         assertConnectorIsRunning();
 
-        waitForSnapshotToBeCompleted(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
+        waitForSnapshotToBeCompleted(TestHelper.TEST_CONNECTOR, testMethodName);
     }
 
     protected Builder connectorConfig() {
@@ -63,9 +68,9 @@ public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
     }
 
     private String getTableIncludeList() {
-        switch (name.getMethodName()) {
+        switch (testMethodName) {
             case "stringTypes":
-                return TestHelper.includePrefix("type_string") ;
+                return TestHelper.includePrefix("type_string");
             case "fpTypes":
             case "fpTypesAsString":
             case "fpTypesAsDouble":
@@ -79,7 +84,7 @@ public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
             case "clobTypes":
                 return TestHelper.includePrefix("type_clob");
             default:
-                throw new IllegalArgumentException("Unexpected test method: " + name.getMethodName());
+                throw new IllegalArgumentException("Unexpected test method: " + testMethodName);
         }
     }
 

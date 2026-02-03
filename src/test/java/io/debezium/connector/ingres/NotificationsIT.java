@@ -8,8 +8,8 @@ package io.debezium.connector.ingres;
 import java.sql.SQLException;
 import java.util.List;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.ingres.IngresConnectorConfig.SnapshotMode;
@@ -20,7 +20,7 @@ public class NotificationsIT extends AbstractNotificationsIT<IngresConnector> {
 
     private IngresConnection connection;
 
-    @Before
+    @BeforeEach
     public void before() throws SQLException {
         connection = TestHelper.testConnection();
 
@@ -32,7 +32,7 @@ public class NotificationsIT extends AbstractNotificationsIT<IngresConnector> {
         Print.enable();
     }
 
-    @After
+    @AfterEach
     public void after() throws SQLException {
         /*
          * Since all DDL operations are forbidden during Ingres CDC,

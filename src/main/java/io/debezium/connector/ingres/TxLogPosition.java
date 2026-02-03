@@ -25,67 +25,68 @@ public class TxLogPosition implements Nullable, Comparable<TxLogPosition> {
     public static final TxLogPosition NULL = new TxLogPosition(null, null, null, -1L);
 
     private final Long txId;
-   
+
     private final HeaderRecord commitRecord;
     private final HeaderRecord changeRecord;
     private final HeaderRecord beginRecord;
-    
+
     public TxLogPosition(HeaderRecord commitRecord, HeaderRecord changeRecord, HeaderRecord beginRecord, Long txId) {
-		this.commitRecord = commitRecord;
-		this.changeRecord = changeRecord;
-		this.beginRecord = beginRecord;
-		this.txId = txId;
-	}
-    
+        this.commitRecord = commitRecord;
+        this.changeRecord = changeRecord;
+        this.beginRecord = beginRecord;
+        this.txId = txId;
+    }
+
     public TxLogPosition(HeaderRecord commitRecord, HeaderRecord changeRecord, HeaderRecord beginRecord) {
- 		this.commitRecord = commitRecord;
- 		this.changeRecord = changeRecord;
- 		this.beginRecord = beginRecord;
- 		this.txId = null;
- 	}
+        this.commitRecord = commitRecord;
+        this.changeRecord = changeRecord;
+        this.beginRecord = beginRecord;
+        this.txId = null;
+    }
 
     public static TxLogPosition cloneAndSet(TxLogPosition position, HeaderRecord commitRecord, HeaderRecord changeRecord, long txId, HeaderRecord beginRecord) {
 
-    	HeaderRecord commitRec = commitRecord;
-    	HeaderRecord changeRec = changeRecord;
-    	HeaderRecord beginRec = beginRecord;
-    	
-    	if(commitRec == null) {
-    		commitRec = position.commitRecord;
-    	}
-    	else if(position.commitRecord != null) {
-    		commitRec = commitRecord.compareTo(position.commitRecord) > 0 ? commitRecord : position.commitRecord;
-    	}
-    	if(changeRec == null) {
-			changeRec = position.changeRecord;
-		}
-		else if(position.changeRecord != null) {
-			changeRec = changeRecord.compareTo(position.changeRecord) > 0 ? changeRecord : position.changeRecord;
-		}
-    	if(beginRec == null) {
-    		beginRec = position.beginRecord;
-    	}
-    	else if(position.beginRecord != null) {
-			beginRec = beginRecord.compareTo(position.beginRecord) > 0 ? beginRecord : position.beginRecord;
-		}
-    	return new TxLogPosition(commitRec, changeRec, beginRec, txId >= 0 ? txId : position.txId);
+        HeaderRecord commitRec = commitRecord;
+        HeaderRecord changeRec = changeRecord;
+        HeaderRecord beginRec = beginRecord;
+
+        if (commitRec == null) {
+            commitRec = position.commitRecord;
+        }
+        else if (position.commitRecord != null) {
+            commitRec = commitRecord.compareTo(position.commitRecord) > 0 ? commitRecord : position.commitRecord;
+        }
+        if (changeRec == null) {
+            changeRec = position.changeRecord;
+        }
+        else if (position.changeRecord != null) {
+            changeRec = changeRecord.compareTo(position.changeRecord) > 0 ? changeRecord : position.changeRecord;
+        }
+        if (beginRec == null) {
+            beginRec = position.beginRecord;
+        }
+        else if (position.beginRecord != null) {
+            beginRec = beginRecord.compareTo(position.beginRecord) > 0 ? beginRecord : position.beginRecord;
+        }
+        return new TxLogPosition(commitRec, changeRec, beginRec, txId >= 0 ? txId : position.txId);
     }
 
     public Long getTxId() {
         return txId;
     }
+
     public HeaderRecord getBeginRecord() {
-    		return this.beginRecord;
+        return this.beginRecord;
     }
-    
+
     public HeaderRecord getChangeRecord() {
-		return this.changeRecord;
-	}
+        return this.changeRecord;
+    }
 
     public HeaderRecord getCommitRecord() {
-    	return this.commitRecord;
-	}
-    
+        return this.commitRecord;
+    }
+
     @Override
     public String toString() {
         return this == NULL ? "NULL" : commitRecord + ":" + changeRecord + ":" + txId + ":" + beginRecord;

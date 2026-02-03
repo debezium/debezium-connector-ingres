@@ -5,9 +5,12 @@
  */
 package io.debezium.connector.ingres;
 
+import static io.debezium.heartbeat.HeartbeatErrorHandler.DEFAULT_NOOP_ERRORHANDLER;
+
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.errors.ConnectException;
@@ -21,7 +24,10 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
+import io.debezium.connector.common.CdcSourceTaskContext;
+import io.debezium.connector.common.DebeziumHeaderProducer;
 import io.debezium.document.DocumentReader;
+import io.debezium.heartbeat.HeartbeatFactory;
 import io.debezium.jdbc.DefaultMainConnectionProvidingConnectionFactory;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
@@ -32,6 +38,7 @@ import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.notification.NotificationService;
 import io.debezium.pipeline.signal.SignalProcessor;
 import io.debezium.pipeline.spi.Offsets;
+import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.snapshot.SnapshotterService;
@@ -56,10 +63,20 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
     private volatile IngresConnection dataConnection;
     private volatile ErrorHandler errorHandler;
     private volatile IngresDatabaseSchema schema;
+    private IngresConnectorConfig connectorConfig;
 
     @Override
     public String version() {
         return Module.version();
+    }
+
+    @Override
+    public CdcSourceTaskContext<? extends CommonConnectorConfig> preStart(Configuration config) {
+
+        connectorConfig = new IngresConnectorConfig(config);
+        taskContext = new IngresTaskContext(config, connectorConfig);
+
+        return taskContext;
     }
 
     @Override
@@ -82,7 +99,10 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
 
         final IngresValueConverters valueConverters = new IngresValueConverters(connectorConfig.getDecimalMode(), connectorConfig.getTemporalPrecisionMode(),
                 connectorConfig.binaryHandlingMode());
-        schema = new IngresDatabaseSchema(connectorConfig, topicNamingStrategy, valueConverters, schemaNameAdjuster, dataConnection);
+
+        CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
+        schema = new IngresDatabaseSchema(connectorConfig, topicNamingStrategy, valueConverters, schemaNameAdjuster, dataConnection, customConverterRegistry,
+                taskContext);
         schema.initializeStorage();
 
         Offsets<IngresPartition, IngresOffsetContext> previousOffsets = getPreviousOffsets(new IngresPartition.Provider(connectorConfig),
@@ -104,10 +124,8 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
 
         final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
 
-        validateAndLoadSchemaHistory(connectorConfig, dataConnection::validateLogPosition, previousOffsets, schema,
+        validateSchemaHistory(connectorConfig, dataConnection::validateLogPosition, previousOffsets, schema,
                 snapshotterService.getSnapshotter());
-
-        taskContext = new IngresTaskContext(connectorConfig, schema);
 
         final Clock clock = Clock.system();
 
@@ -139,7 +157,11 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
                 connectorConfig.getTableFilters().dataCollectionFilter(),
                 DataChangeEvent::new,
                 null,
-                connectorConfig.createHeartbeat(topicNamingStrategy, schemaNameAdjuster, null, null),
+                new HeartbeatFactory<>().getScheduledHeartbeat(
+                        connectorConfig,
+                        () -> new IngresConnection(connectorConfig.getJdbcConfig()),
+                        DEFAULT_NOOP_ERRORHANDLER,
+                        queue),
                 schemaNameAdjuster,
                 new IngresTransactionMonitor(
                         connectorConfig,
@@ -149,7 +171,8 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
                             queue.enqueue(new DataChangeEvent(record));
                         },
                         topicNamingStrategy.transactionTopic()),
-                signalProcessor);
+                signalProcessor,
+                connectorConfig.getServiceRegistry().tryGetService(DebeziumHeaderProducer.class));
 
         final NotificationService<IngresPartition, IngresOffsetContext> notificationService = new NotificationService<>(
                 getNotificationChannels(),
@@ -213,5 +236,15 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
     @Override
     protected Iterable<Field> getAllConfigurationFields() {
         return IngresConnectorConfig.ALL_FIELDS;
+    }
+
+    @Override
+    protected String connectorName() {
+        return Module.name();
+    }
+
+    @Override
+    protected Optional<ErrorHandler> getErrorHandler() {
+        return Optional.ofNullable(errorHandler);
     }
 }

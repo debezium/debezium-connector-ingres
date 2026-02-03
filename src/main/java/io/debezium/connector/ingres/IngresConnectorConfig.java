@@ -43,7 +43,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     protected static final int DEFAULT_PORT = 27839;
 
     protected static final int DEFAULT_CDC_TIMEOUT = 5;
-    
+
     public static final String DEFAULT_HEADER_TABLE = "cdc_header_marker";
 
     /**
@@ -335,7 +335,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
                     + "This in turns allows the CDC engine to close cleanly as well as indicate to the running program the connection is alive and active.")
             .withValidation(Field::isNonNegativeInteger)
             .withDefault(DEFAULT_CDC_TIMEOUT);
-    
+
     public static final Field CDC_MARKER_TABLE = Field.create("cdc.marker.table")
             .withDisplayName("CDC Marker Table")
             .withType(ConfigDef.Type.BOOLEAN)
@@ -432,10 +432,10 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     public int getCdcTimeout() {
         return cdcTimeout;
     }
-    
+
     public String getMarkerTable() {
-		return cdcMarkerTable;
-	}
+        return cdcMarkerTable;
+    }
 
     @Override
     protected SourceInfoStructMaker<? extends AbstractSourceInfo> getSourceInfoStructMaker(Version version) {
@@ -443,12 +443,12 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     }
 
     @Override
-    protected HistoryRecordComparator getHistoryRecordComparator() {
+    public HistoryRecordComparator getHistoryRecordComparator() {
         return new HistoryRecordComparator() {
             @Override
             protected boolean isPositionAtOrBefore(Document recorded, Document desired) {
-            	HeaderRecord r = HeaderRecord.deserializeFromBase64(recorded.getString(SourceInfo.CHANGE_HEADER));
-            	HeaderRecord d = HeaderRecord.deserializeFromBase64(desired.getString(SourceInfo.CHANGE_HEADER));
+                HeaderRecord r = HeaderRecord.deserializeFromBase64(recorded.getString(SourceInfo.CHANGE_HEADER));
+                HeaderRecord d = HeaderRecord.deserializeFromBase64(desired.getString(SourceInfo.CHANGE_HEADER));
                 return r.compareTo(d) < 1;
             }
         };
@@ -461,8 +461,8 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
 
     @Override
     public boolean isSignalDataCollection(DataCollectionId dataCollectionId) {
-        String signalingDataCollection = getSignalingDataCollectionId();
-        return signalingDataCollection != null && !signalingDataCollection.isEmpty() && dataCollectionId.identifier().endsWith(signalingDataCollection);
+        return getSignalingDataCollectionTableIds().stream()
+                .anyMatch(id -> id.equals(dataCollectionId));
     }
 
     @Override
@@ -474,7 +474,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
 
         @Override
         public boolean isIncluded(TableId t) {
-        	return !(t.table().toLowerCase().startsWith("cdc_header_marker"));
+            return !(t.table().toLowerCase().startsWith("cdc_header_marker"));
         }
     }
 }

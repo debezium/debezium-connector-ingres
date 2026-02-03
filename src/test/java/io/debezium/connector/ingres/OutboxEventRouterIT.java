@@ -8,16 +8,13 @@ package io.debezium.connector.ingres;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.data.Schema;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.TestRule;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.ingres.IngresConnectorConfig.SnapshotMode;
 import io.debezium.connector.ingres.util.TestHelper;
 import io.debezium.jdbc.JdbcConnection;
-import io.debezium.junit.ConditionalFail;
 import io.debezium.junit.Flaky;
 import io.debezium.transforms.outbox.AbstractEventRouterTest;
 import io.debezium.transforms.outbox.EventRouter;
@@ -37,12 +34,9 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
             "type varchar(255) not null, " +
             "payload char(100))";
 
-    @Rule
-    public TestRule conditionalFail = new ConditionalFail();
-
     private IngresConnection connection;
 
-    @Before
+    @BeforeEach
     @Override
     public void beforeEach() throws Exception {
         connection = TestHelper.testConnection();
@@ -53,10 +47,9 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
         super.beforeEach();
     }
 
-    @After
-    @Override
+    @AfterEach
     public void afterEach() throws Exception {
-        super.afterEach();
+        stopConnector();
         waitForConnectorShutdown(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
         assertConnectorNotRunning();
         if (connection != null && connection.isConnected()) {
@@ -101,7 +94,7 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
 
     @Override
     protected String topicName() {
-    	return TestHelper.topicName(tableName());
+        return TestHelper.topicName(tableName());
     }
 
     @Override

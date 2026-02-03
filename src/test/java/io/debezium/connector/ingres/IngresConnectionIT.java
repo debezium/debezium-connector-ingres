@@ -5,7 +5,7 @@
  */
 package io.debezium.connector.ingres;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.ingres.util.TestHelper;
 import io.debezium.util.Testing;

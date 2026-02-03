@@ -7,14 +7,11 @@ package io.debezium.connector.ingres;
 
 import java.sql.SQLException;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.TestRule;
+import org.junit.jupiter.api.BeforeEach;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.ingres.util.TestHelper;
 import io.debezium.data.VerifyRecord;
-import io.debezium.junit.ConditionalFail;
 import io.debezium.junit.Flaky;
 import io.debezium.relational.TableId;
 
@@ -26,10 +23,7 @@ import io.debezium.relational.TableId;
 @Flaky("DBZ-8114")
 public class IngresOfflineDefaultValueIT extends AbstractIngresDefaultValueIT {
 
-    @Rule
-    public TestRule conditionalFail = new ConditionalFail();
-
-    @Before
+    @BeforeEach
     public void before() throws SQLException {
         super.before();
         if (VerifyRecord.isApucurioAvailable()) {

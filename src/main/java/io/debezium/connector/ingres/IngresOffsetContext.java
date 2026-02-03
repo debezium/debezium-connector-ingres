@@ -31,7 +31,7 @@ public class IngresOffsetContext extends CommonOffsetContext<SourceInfo> {
     private final IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
 
     public IngresOffsetContext(IngresConnectorConfig connectorConfig, TxLogPosition position, SnapshotType snapshot, boolean snapshotCompleted,
-                                 TransactionContext transactionContext, IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
+                               TransactionContext transactionContext, IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
         super(new SourceInfo(connectorConfig), snapshotCompleted);
 
         sourceInfo.setCommitRecord(position.getCommitRecord());
@@ -126,9 +126,12 @@ public class IngresOffsetContext extends CommonOffsetContext<SourceInfo> {
 
         @Override
         public IngresOffsetContext load(Map<String, ?> offset) {
-        	final HeaderRecord commitRecord = offset.get(SourceInfo.COMMIT_HEADER) == null ? null : HeaderRecord.deserializeFromBase64(offset.get(SourceInfo.COMMIT_HEADER).toString());
-        	final HeaderRecord changeRecord = offset.get(SourceInfo.CHANGE_HEADER) == null ? null : HeaderRecord.deserializeFromBase64(offset.get(SourceInfo.CHANGE_HEADER).toString());
-        	final HeaderRecord beginRecord =  offset.get(SourceInfo.BEGIN_HEADER) == null ? null : HeaderRecord.deserializeFromBase64(offset.get(SourceInfo.BEGIN_HEADER).toString());
+            final HeaderRecord commitRecord = offset.get(SourceInfo.COMMIT_HEADER) == null ? null
+                    : HeaderRecord.deserializeFromBase64(offset.get(SourceInfo.COMMIT_HEADER).toString());
+            final HeaderRecord changeRecord = offset.get(SourceInfo.CHANGE_HEADER) == null ? null
+                    : HeaderRecord.deserializeFromBase64(offset.get(SourceInfo.CHANGE_HEADER).toString());
+            final HeaderRecord beginRecord = offset.get(SourceInfo.BEGIN_HEADER) == null ? null
+                    : HeaderRecord.deserializeFromBase64(offset.get(SourceInfo.BEGIN_HEADER).toString());
 
             final SnapshotType snapshot = loadSnapshot(offset).orElse(null);
             boolean snapshotCompleted = loadSnapshotCompleted(offset);

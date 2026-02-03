@@ -61,9 +61,9 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     private final Map<Integer, TableId> idToTableId = new ConcurrentHashMap<>();
 
     public IngresStreamingChangeEventSource(IngresConnectorConfig connectorConfig,
-                                              IngresConnection dataConnection, IngresConnection metadataConnection,
-                                              EventDispatcher<IngresPartition, TableId> dispatcher, ErrorHandler errorHandler,
-                                              Clock clock, IngresDatabaseSchema schema) {
+                                            IngresConnection dataConnection, IngresConnection metadataConnection,
+                                            EventDispatcher<IngresPartition, TableId> dispatcher, ErrorHandler errorHandler,
+                                            Clock clock, IngresDatabaseSchema schema) {
         this.connectorConfig = connectorConfig;
         this.dbConnection = metadataConnection;
         this.dispatcher = dispatcher;
@@ -95,8 +95,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     public void execute(ChangeEventSourceContext context, IngresPartition partition, IngresOffsetContext offsetContext)
             throws InterruptedException {
 
-    	
-    	LOGGER.info("Starting Ingres CDC streaming tableIDs: {}", schema.tableIds());
+        LOGGER.info("Starting Ingres CDC streaming tableIDs: {}", schema.tableIds());
         // Need to refresh schema before CDCEngine is started, to capture columns added in off-line schema evolution
         schema.tableIds().stream().map(TableId::schema).distinct().forEach(schemaName -> {
             try {
@@ -115,13 +114,13 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
         });
 
         TxLogPosition lastPosition = offsetContext.getChangePosition();
-        
+
         HeaderRecord lastBeginRecord = lastPosition.getBeginRecord();
         HeaderRecord lastChangeRecord = lastPosition.getChangeRecord();
         HeaderRecord lastCommitRecord = lastPosition.getCommitRecord();
-        HeaderRecord beginRecord = (lastBeginRecord == null) ? lastCommitRecord : lastBeginRecord; 
-        try(CDCTransactionEngine engine = getTransactionEngine(context, schema, beginRecord).build()) {
-        	/*
+        HeaderRecord beginRecord = (lastBeginRecord == null) ? lastCommitRecord : lastBeginRecord;
+        try (CDCTransactionEngine engine = getTransactionEngine(context, schema, beginRecord).build()) {
+            /*
              * Recover Stage. In this stage, we replay event from 'beginLsn' to 'commitLsn', and rebuild the transactionCache.
              */
             if (beginRecord != null && beginRecord.compareTo(lastCommitRecord) < 0) {
@@ -137,41 +136,42 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     }
 
                     dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
-                    
+
                     LogRecord streamRecord = engine.get();
-                    switch(streamRecord.getType()) {
-                    case RELATION:
-						handleMetadata(partition, offsetContext, engine, (RelationRecord)streamRecord);
-						break;
-					case ERROR:
-						LOGGER.error(RECEIVED_GENERIC_RECORD, streamRecord, 0);
-                        break;
-					case TIMEOUT:
-						LOGGER.trace(RECEIVED_GENERIC_RECORD, streamRecord, 0);
-						break;
-					case TRANSACTION:
-						CDCTransaction transactionRecord = (CDCTransaction)streamRecord;
-						HeaderRecord commitRecord = transactionRecord.getEndRecord().getHeader();
-	                    if (commitRecord.compareTo(lastCommitRecord) < 0) {
-	                        LOGGER.info("Skipping transaction with id: '{}' since commitRecord='{}' < lastCommitRecord='{}'",
-	                                transactionRecord.getTransactionId(), commitRecord, lastCommitRecord);
-	                        break;
-	                    }
-	                    if (commitRecord.equals(lastCommitRecord) && lastChangeRecord.equals(lastCommitRecord)) {
-	                        LOGGER.info("Skipping transaction with id: '{}' since commitRecord='{}' == lastCommitLsn='{}' and lastChangeRecord='{}' == lastCommitRecord",
-	                                transactionRecord.getTransactionId(), commitRecord, lastCommitRecord, lastChangeRecord);
-	                        break;
-	                    }
-	                    if (commitRecord.compareTo(lastCommitRecord) > 0) {
-	                        LOGGER.info("Recover finished: from lastBeginRecord='{}' to lastCommitRecord='{}', currentRecord='{}'",
-	                                lastBeginRecord, lastCommitRecord, transactionRecord.getBeginRecord().getHeader());
-	                        recovering = false;
-	                    }
-	                    handleTransaction(engine, partition, offsetContext, transactionRecord, recovering);
-						break;
-					default:
-						LOGGER.warn(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, 0);
-						break;
+                    switch (streamRecord.getType()) {
+                        case RELATION:
+                            handleMetadata(partition, offsetContext, engine, (RelationRecord) streamRecord);
+                            break;
+                        case ERROR:
+                            LOGGER.error(RECEIVED_GENERIC_RECORD, streamRecord, 0);
+                            break;
+                        case TIMEOUT:
+                            LOGGER.trace(RECEIVED_GENERIC_RECORD, streamRecord, 0);
+                            break;
+                        case TRANSACTION:
+                            CDCTransaction transactionRecord = (CDCTransaction) streamRecord;
+                            HeaderRecord commitRecord = transactionRecord.getEndRecord().getHeader();
+                            if (commitRecord.compareTo(lastCommitRecord) < 0) {
+                                LOGGER.info("Skipping transaction with id: '{}' since commitRecord='{}' < lastCommitRecord='{}'",
+                                        transactionRecord.getTransactionId(), commitRecord, lastCommitRecord);
+                                break;
+                            }
+                            if (commitRecord.equals(lastCommitRecord) && lastChangeRecord.equals(lastCommitRecord)) {
+                                LOGGER.info(
+                                        "Skipping transaction with id: '{}' since commitRecord='{}' == lastCommitLsn='{}' and lastChangeRecord='{}' == lastCommitRecord",
+                                        transactionRecord.getTransactionId(), commitRecord, lastCommitRecord, lastChangeRecord);
+                                break;
+                            }
+                            if (commitRecord.compareTo(lastCommitRecord) > 0) {
+                                LOGGER.info("Recover finished: from lastBeginRecord='{}' to lastCommitRecord='{}', currentRecord='{}'",
+                                        lastBeginRecord, lastCommitRecord, transactionRecord.getBeginRecord().getHeader());
+                                recovering = false;
+                            }
+                            handleTransaction(engine, partition, offsetContext, transactionRecord, recovering);
+                            break;
+                        default:
+                            LOGGER.warn(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, 0);
+                            break;
                     }
                 }
             }
@@ -191,17 +191,17 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                 dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
                 LogRecord streamRecord = engine.get();
                 switch (streamRecord.getType()) {
-                case TRANSACTION:
-                    handleTransaction(engine, partition, offsetContext, (CDCTransaction) streamRecord, false);
-                    break;
-                case RELATION:
-                    handleMetadata(partition, offsetContext, engine, (RelationRecord) streamRecord);
-                    break;
-                case TIMEOUT:
-                    LOGGER.trace(RECEIVED_GENERIC_RECORD, streamRecord, 0);
-                    break;
-                default:
-                    LOGGER.warn(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, 0);
+                    case TRANSACTION:
+                        handleTransaction(engine, partition, offsetContext, (CDCTransaction) streamRecord, false);
+                        break;
+                    case RELATION:
+                        handleMetadata(partition, offsetContext, engine, (RelationRecord) streamRecord);
+                        break;
+                    case TIMEOUT:
+                        LOGGER.trace(RECEIVED_GENERIC_RECORD, streamRecord, 0);
+                        break;
+                    default:
+                        LOGGER.warn(RECEIVED_UNKNOWN_RECORD_TYPE, streamRecord, 0);
                 }
             }
         }
@@ -225,45 +225,45 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     public IngresOffsetContext getOffsetContext() {
         return effectiveOffsetContext;
     }
-    
-	public CDCTransactionEngine.Builder getTransactionEngine(ChangeEventSourceContext context,
-            IngresDatabaseSchema schema, HeaderRecord beginRecord) throws SQLException {
-    		return CDCTransactionEngine.builder(getLogStreamEngine(schema, beginRecord)).onTimeout(r -> {
-				if (context.isRunning()) {
-					LOGGER.trace(RECEIVED_GENERIC_RECORD, r, 0);
-				}
-			});
+
+    public CDCTransactionEngine.Builder getTransactionEngine(ChangeEventSourceContext context,
+                                                             IngresDatabaseSchema schema, HeaderRecord beginRecord)
+            throws SQLException {
+        return CDCTransactionEngine.builder(getLogStreamEngine(schema, beginRecord)).onTimeout(r -> {
+            if (context.isRunning()) {
+                LOGGER.trace(RECEIVED_GENERIC_RECORD, r, 0);
+            }
+        });
     }
-    
+
     public CDCLogStream.Builder getLogStreamEngine(IngresDatabaseSchema schema, HeaderRecord beginRecord) throws SQLException {
-    	CDCLogStream.Builder builder = CDCLogStream.builder(dbConnection.datasource())
-				.timeout(connectorConfig.getCdcTimeout())
-				.startPosition(beginRecord)
-				;
+        CDCLogStream.Builder builder = CDCLogStream.builder(dbConnection.datasource())
+                .timeout(connectorConfig.getCdcTimeout())
+                .startPosition(beginRecord);
 
-		schema.tableIds().forEach(tid -> {
-			LOGGER.info("Table ID: {}", tid);
-			CDCPublication p = new CDCPublication();
-			p.name(tid.identifier())
-				.table(tid.table())
-				.owner(tid.schema())
-				.attributes(CDCPublication.FULL_BEFORE_IMAGE)
-				.columns(schema.tableFor(tid).retrieveColumnNames().toArray(String[]::new));
-			builder.publication(p);
-		});
-		
-		if (LOGGER.isInfoEnabled()) {
-			LOGGER.info("CDCLogStream begin record set to '{}'", beginRecord);
-		}
+        schema.tableIds().forEach(tid -> {
+            LOGGER.info("Table ID: {}", tid);
+            CDCPublication p = new CDCPublication();
+            p.name(tid.identifier())
+                    .table(tid.table())
+                    .owner(tid.schema())
+                    .attributes(CDCPublication.FULL_BEFORE_IMAGE)
+                    .columns(schema.tableFor(tid).retrieveColumnNames().toArray(String[]::new));
+            builder.publication(p);
+        });
 
-		return builder;
-	}
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("CDCLogStream begin record set to '{}'", beginRecord);
+        }
+
+        return builder;
+    }
 
     private void handleTransaction(CDCTransactionEngine engine, IngresPartition partition,
                                    IngresOffsetContext offsetContext, CDCTransaction transactionRecord,
                                    boolean recover)
             throws InterruptedException, CDCStreamException {
-    	Stopwatch stopwatchOverall = Stopwatch.reusable();
+        Stopwatch stopwatchOverall = Stopwatch.reusable();
         stopwatchOverall.start();
 
         HeaderRecord lastChangeRecord = offsetContext.getChangePosition().getChangeRecord();
@@ -273,15 +273,15 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
 
         Stopwatch stopwatch = Stopwatch.reusable();
         stopwatch.start();
-        
+
         LocalDateTime beginTs = beginRecord.getTime();
         HeaderRecord beginHeader = beginRecord.getHeader();
         HeaderRecord endHeader = endRecord.getHeader();
         HeaderRecord restartHeader = engine.getLowestHeaderRecord().orElse(endHeader);
         restartHeader = (beginHeader.compareTo(restartHeader) <= 0)
-				? beginHeader
-				: restartHeader;
-        
+                ? beginHeader
+                : restartHeader;
+
         if (!recover) {
             updateChangePosition(offsetContext, endHeader, beginHeader, transactionId, restartHeader);
             dispatcher.dispatchTransactionStartedEvent(
@@ -310,7 +310,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     continue;
                 }
 
-                //FIXME  test labels when we have multiple publications?                
+                // FIXME test labels when we have multiple publications?
                 Optional<TableId> tableId = Optional.ofNullable(streamRecord.getId()).map(idToTableId::get);
 
                 updateChangePosition(offsetContext, null, changeHeader, transactionId, null);
@@ -339,10 +339,10 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                                 streamRecord, stop(stopwatch), before);
                         break;
                     case TRUNCATE:
-                    	TruncateRecord truncateRecord = streamRecord.unwrap(TruncateRecord.class);
-                    	tableId = Optional.of(new TableId(this.dbConnection.getRealDatabaseName(), truncateRecord.getOwner(), truncateRecord.getTableName()));
+                        TruncateRecord truncateRecord = streamRecord.unwrap(TruncateRecord.class);
+                        tableId = Optional.of(new TableId(this.dbConnection.getRealDatabaseName(), truncateRecord.getOwner(), truncateRecord.getTableName()));
                         handleOperation(partition, offsetContext, Operation.TRUNCATE, before, after, tableId.orElseThrow());
-                        
+
                         LOGGER.debug(RECEIVED_GENERIC_RECORD, streamRecord, stop(stopwatch));
                         break;
                     case RELATION:
@@ -357,7 +357,6 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
             stopwatch.start();
             updateChangePosition(offsetContext, commitHeader, commitHeader, transactionId, restartHeader);
             dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, commitTime.atZone(ZoneId.systemDefault()).toInstant());
-            
 
             LOGGER.debug("Received {} Time [{}] Owner [{}] ElapsedT [{}ms]",
                     endRecord, commitTime, beginRecord.getOwner(), stop(stopwatch));
@@ -380,9 +379,10 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                                 RelationRecord metaDataRecord)
             throws InterruptedException {
         long start = System.nanoTime();
-        this.idToTableId.put(metaDataRecord.getObjectId(), new TableId(this.dbConnection.getRealDatabaseName(), metaDataRecord.getOwner(), metaDataRecord.getTableName()));
+        this.idToTableId.put(metaDataRecord.getObjectId(),
+                new TableId(this.dbConnection.getRealDatabaseName(), metaDataRecord.getOwner(), metaDataRecord.getTableName()));
         TableId tableId = idToTableId.get(metaDataRecord.getObjectId());
-        
+
         offsetContext.event(tableId, Instant.now());
 
         dispatcher.dispatchSchemaChangeEvent(partition, offsetContext, null, receiver -> {
@@ -425,6 +425,6 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     }
 
     private long stop(Stopwatch stopwatch) {
-		return stopwatch.stop().durations().statistics().getTotal().toMillis();
-	}
+        return stopwatch.stop().durations().statistics().getTotal().toMillis();
+    }
 }

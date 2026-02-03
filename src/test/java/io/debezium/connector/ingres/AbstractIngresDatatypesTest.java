@@ -19,9 +19,9 @@ import java.util.List;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.config.Configuration.Builder;
@@ -79,7 +79,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             "  id int not null primary key with default next value for dbzsequence, " +
             "  val_date date, " +
             "  val_time TIME(5) WITHOUT TIME ZONE, " +
-            "  val_ansidate ANSIDATE " + 
+            "  val_ansidate ANSIDATE " +
             ")";
 
     private static final String DDL_CLOB = "create table type_clob (" +
@@ -135,7 +135,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             new SchemaAndValueField("val_time", Time.builder().optional().build(),
                     LocalTime.of(12, 34, 56).toSecondOfDay() * 1_000),
             new SchemaAndValueField("val_ansidate", Date.builder().optional().build(),
-                    (int)LocalDate.of(2024, 3, 27).toEpochDay()));
+                    (int) LocalDate.of(2024, 3, 27).toEpochDay()));
 
     private static final List<SchemaAndValueField> EXPECTED_TIME_AS_ADAPTIVE = Arrays.asList(
             new SchemaAndValueField("val_date", Date.builder().optional().build(),
@@ -143,7 +143,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             new SchemaAndValueField("val_time", MicroTime.builder().optional().build(),
                     LocalTime.of(12, 34, 56).toSecondOfDay() * 1_000_000L),
             new SchemaAndValueField("val_ansidate", Date.builder().optional().build(),
-                    (int)LocalDate.of(2024, 3, 27).toEpochDay()));
+                    (int) LocalDate.of(2024, 3, 27).toEpochDay()));
 
     private static final List<SchemaAndValueField> EXPECTED_TIME_AS_CONNECT = Arrays.asList(
             new SchemaAndValueField("val_date", org.apache.kafka.connect.data.Date.builder().optional().build(),
@@ -177,7 +177,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
     };
 
     private static final String[] ALL_DDLS = {
-    		"create sequence dbzsequence",
+            "create sequence dbzsequence",
             DDL_STRING,
             DDL_FP,
             DDL_INT,
@@ -187,13 +187,13 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
 
     private static IngresConnection connection;
 
-    @BeforeClass
+    @BeforeAll
     public static void beforeClass() throws SQLException {
         connection = TestHelper.testConnection();
         dropTables();
     }
 
-    @AfterClass
+    @AfterAll
     public static void afterClass() throws SQLException {
         if (connection != null) {
             connection.rollback();
@@ -203,24 +203,25 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
     }
 
     protected static void createTables() throws SQLException {
-    	try {
-    		dropTables();
-    		connection.execute("drop sequence dbzsequence");
-    		
-    	}
-    	catch(SQLException e) {
-    		// ignore
-    	}
-    	Arrays.asList(ALL_DDLS).forEach(ddl -> {
-    		Testing.print("DDL: " + ddl);
-    		try {
-				connection.execute(ddl);
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-    	});
-        //connection.execute(ALL_DDLS);
+        try {
+            dropTables();
+            connection.execute("drop sequence dbzsequence");
+
+        }
+        catch (SQLException e) {
+            // ignore
+        }
+        Arrays.asList(ALL_DDLS).forEach(ddl -> {
+            Testing.print("DDL: " + ddl);
+            try {
+                connection.execute(ddl);
+            }
+            catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        });
+        // connection.execute(ALL_DDLS);
     }
 
     public static void dropTables() throws SQLException {
@@ -588,7 +589,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
     }
 
     protected static void insertFpTypes() throws SQLException {
-    	connection.execute("INSERT INTO type_fp VALUES (0, 1.1, 2.22, 3.333, 1234.567891, 77.323, 77.323)");
+        connection.execute("INSERT INTO type_fp VALUES (0, 1.1, 2.22, 3.333, 1234.567891, 77.323, 77.323)");
     }
 
     protected static void insertIntTypes() throws SQLException {
@@ -606,19 +607,19 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
     }
 
     protected static void insertClobTypes() throws SQLException {
-//        Clob clob1 = connection.connection().createClob();
-//        clob1.setString(0, part(CLOB_JSON, 0, 512));
-//
-//        Clob clob2 = connection.connection().createClob();
-//        clob2.setString(0, part(CLOB_JSON, 0, 5000));
+        // Clob clob1 = connection.connection().createClob();
+        // clob1.setString(0, part(CLOB_JSON, 0, 512));
+        //
+        // Clob clob2 = connection.connection().createClob();
+        // clob2.setString(0, part(CLOB_JSON, 0, 5000));
 
-        //FIXME: Driver issue with clob
+        // FIXME: Driver issue with clob
         connection.prepareUpdate("INSERT INTO type_clob VALUES (0, ?, ?, ?)", ps -> {
             ps.setString(1, CLOB_TXT);
             ps.setString(2, part(CLOB_JSON, 0, 512));
             ps.setString(3, part(CLOB_JSON, 0, 512));
-//            ps.setClob(2, clob1);
-//            ps.setClob(3, clob2);
+            // ps.setClob(2, clob1);
+            // ps.setClob(3, clob2);
         });
         connection.commit();
     }

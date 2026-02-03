@@ -11,8 +11,8 @@ import java.time.Instant;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.ingres.cdc.records.HeaderRecord;
 
@@ -26,7 +26,7 @@ public class SourceInfoTest {
 
     private SourceInfo source;
 
-    @Before
+    @BeforeEach
     public void beforeEach() {
         final IngresConnectorConfig connectorConfig = new IngresConnectorConfig(
                 Configuration.create()
@@ -104,12 +104,12 @@ public class SourceInfoTest {
                 .field("change_header", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("commit_header", Schema.OPTIONAL_STRING_SCHEMA)
                 .build();
-        
+
         Schema schema2 = source.struct().schema();
-        
-        for(int i = 0; i < schema.fields().size(); i++) {
-			assertThat(schema.fields().get(i)).isEqualTo(schema2.fields().get(i));
-		}
+
+        for (int i = 0; i < schema.fields().size(); i++) {
+            assertThat(schema.fields().get(i)).isEqualTo(schema2.fields().get(i));
+        }
         assertThat(source.struct().schema()).isEqualTo(schema);
     }
 }

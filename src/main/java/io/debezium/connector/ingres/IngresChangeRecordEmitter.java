@@ -32,7 +32,7 @@ public class IngresChangeRecordEmitter extends RelationalChangeRecordEmitter<Ing
     private final Object[] after;
 
     public IngresChangeRecordEmitter(IngresPartition partition, IngresOffsetContext offsetContext, Operation operation,
-                                       Object[] before, Object[] after, Clock clock, IngresConnectorConfig connectorConfig) {
+                                     Object[] before, Object[] after, Clock clock, IngresConnectorConfig connectorConfig) {
         super(partition, offsetContext, clock, connectorConfig);
 
         this.operation = operation;

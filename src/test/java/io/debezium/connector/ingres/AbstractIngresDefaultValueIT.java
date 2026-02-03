@@ -19,9 +19,9 @@ import java.util.function.Consumer;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.ingres.util.TestHelper;
@@ -45,14 +45,8 @@ public abstract class AbstractIngresDefaultValueIT extends AbstractAsyncEngineCo
     private IngresConnection connection;
     private Configuration config;
 
-    @Before
+    @BeforeEach
     public void before() throws SQLException {
-        //FIXME: remove these when I have a better way to handle the configuration
-    	System.setProperty("database.user", "nagaraju");
-    	System.setProperty("database.password", "actian");
-    	System.setProperty("database.port", "27839");
-    	System.setProperty("database.dbname", "db");
-    	System.setProperty("database.hostname", "usau-ninturi-01.actian.com");
         connection = TestHelper.testConnection();
 
         connection.execute("DROP TABLE IF EXISTS dv_test");
@@ -62,7 +56,7 @@ public abstract class AbstractIngresDefaultValueIT extends AbstractAsyncEngineCo
         Print.enable();
     }
 
-    @After
+    @AfterEach
     public void after() throws SQLException {
         /*
          * Since all DDL operations are forbidden during Ingres CDC,
@@ -559,7 +553,7 @@ public abstract class AbstractIngresDefaultValueIT extends AbstractAsyncEngineCo
             }
         });
     }
-    
+
     /**
      * Defines the different assertion types for a given column definition.
      */

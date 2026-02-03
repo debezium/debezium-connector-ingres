@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.ingres;
 
-
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -50,15 +49,15 @@ import io.debezium.util.Strings;
  *
  */
 public class IngresConnection extends JdbcConnection {
-	private final static Logger LOGGER = LoggerFactory.getLogger(IngresConnection.class);
+    private final static Logger LOGGER = LoggerFactory.getLogger(IngresConnection.class);
     private static final String GET_DATABASE_NAME = "SELECT DBMSINFO('database') AS dbname";
 
-    //FIXME Need to get the current timestamp
+    // FIXME Need to get the current timestamp
     private static final String GET_CURRENT_TIMESTAMP = "SELECT CURRENT_TIMESTAMP";
 
     private static final String QUOTED_CHARACTER = ""; // TODO: Unless DELIMIDENT is set, column names cannot be quoted
 
-    //jdbc:ingres://usau-ninturi-01.actian.com:ii7/imadb;encrypt=on;user=the-user;password=the-password
+    // jdbc:ingres://usau-ninturi-01.actian.com:ii7/imadb;encrypt=on;user=the-user;password=the-password
     private static final String URL_PATTERN = "jdbc:ingres://${"
             + JdbcConfiguration.HOSTNAME + "}:${"
             + JdbcConfiguration.PORT + "}/${"
@@ -87,34 +86,35 @@ public class IngresConnection extends JdbcConnection {
         super(config, FACTORY, QUOTED_CHARACTER, QUOTED_CHARACTER);
         realDatabaseName = retrieveRealDatabaseName().trim();
     }
-    
-	@Override
-	public String resolveCatalogName(String catalogName) {
-		return catalogName != null ? catalogName : realDatabaseName;
-	}
-	
-	/**
-	 * Special resolver for Ingres to read table names and add on the database name
-	 */
-	@Override
-	public Set<TableId> readTableNames(String databaseCatalog, String schemaNamePattern, String tableNamePattern,
-			String[] tableTypes) throws SQLException {
-		if (tableNamePattern == null) {
-			tableNamePattern = "%";
-		}
-		Set<TableId> tableIds = new HashSet<>();
-		DatabaseMetaData metadata = connection().getMetaData();
-		try (ResultSet rs = metadata.getTables(databaseCatalog, schemaNamePattern, tableNamePattern, tableTypes)) {
-			while (rs.next()) {
-				String catalogName = resolveCatalogName(rs.getString(1));
-				String schemaName = rs.getString(2);
-				String tableName = rs.getString(3);
-				TableId tableId = new TableId(catalogName, schemaName, tableName);
-				tableIds.add(tableId);
-			}
-		}
-		return tableIds;
-	}
+
+    @Override
+    public String resolveCatalogName(String catalogName) {
+        return catalogName != null ? catalogName : realDatabaseName;
+    }
+
+    /**
+     * Special resolver for Ingres to read table names and add on the database name
+     */
+    @Override
+    public Set<TableId> readTableNames(String databaseCatalog, String schemaNamePattern, String tableNamePattern,
+                                       String[] tableTypes)
+            throws SQLException {
+        if (tableNamePattern == null) {
+            tableNamePattern = "%";
+        }
+        Set<TableId> tableIds = new HashSet<>();
+        DatabaseMetaData metadata = connection().getMetaData();
+        try (ResultSet rs = metadata.getTables(databaseCatalog, schemaNamePattern, tableNamePattern, tableTypes)) {
+            while (rs.next()) {
+                String catalogName = resolveCatalogName(rs.getString(1));
+                String schemaName = rs.getString(2);
+                String tableName = rs.getString(3);
+                TableId tableId = new TableId(catalogName, schemaName, tableName);
+                tableIds.add(tableId);
+            }
+        }
+        return tableIds;
+    }
 
     private String retrieveRealDatabaseName() {
         try {
@@ -130,75 +130,77 @@ public class IngresConnection extends JdbcConnection {
     }
 
     public boolean validateLogPosition(Partition partition, OffsetContext offset, CommonConnectorConfig config) {
-    	// Since we can read older logs this is always true
-    	return true;
+        // Since we can read older logs this is always true
+        return true;
     }
-    
-	@Override
+
+    @Override
     public void readSchema(Tables tables, String databaseCatalog, String schemaNamePattern, TableFilter tableFilter,
-			ColumnNameFilter columnFilter, boolean removeTablesNotFoundInJdbc) throws SQLException {
-		// Before we make any changes, get the copy of the set of table IDs ...
-		Set<TableId> tableIdsBefore = new HashSet<>(tables.tableIds());
+                           ColumnNameFilter columnFilter, boolean removeTablesNotFoundInJdbc)
+            throws SQLException {
+        // Before we make any changes, get the copy of the set of table IDs ...
+        Set<TableId> tableIdsBefore = new HashSet<>(tables.tableIds());
 
-		// Read the metadata for the table columns ...
-		DatabaseMetaData metadata = connection().getMetaData();
+        // Read the metadata for the table columns ...
+        DatabaseMetaData metadata = connection().getMetaData();
 
-		// Find regular and materialized views as they cannot be snapshotted
-		final Set<TableId> viewIds = new HashSet<>();
-		final Set<TableId> tableIds = new HashSet<>();
+        // Find regular and materialized views as they cannot be snapshotted
+        final Set<TableId> viewIds = new HashSet<>();
+        final Set<TableId> tableIds = new HashSet<>();
 
-		Map<TableId, List<Attribute>> attributesByTable = new HashMap<>();
+        Map<TableId, List<Attribute>> attributesByTable = new HashMap<>();
 
-		try (ResultSet rs = metadata.getTables(databaseCatalog, schemaNamePattern, null, supportedTableTypes())) {
-			while (rs.next()) {
-				final String catalogName = resolveCatalogName(rs.getString(1));
-				final String schemaName = rs.getString(2);
-				final String tableName = rs.getString(3);
-				final String tableType = rs.getString(4);
-				if (isTableType(tableType)) {
-					TableId tableId = new TableId(catalogName, schemaName, tableName);
-					if (tableFilter == null || tableFilter.isIncluded(tableId)) {
-						tableIds.add(tableId);
-						attributesByTable.putAll(getAttributeDetails(tableId, tableType));
-					}
-				} else {
-					TableId tableId = new TableId(catalogName, schemaName, tableName);
-					viewIds.add(tableId);
-				}
-			}
-		}
-		LOGGER.debug("{} table(s) will be scanned", tableIds.size());
+        try (ResultSet rs = metadata.getTables(databaseCatalog, schemaNamePattern, null, supportedTableTypes())) {
+            while (rs.next()) {
+                final String catalogName = resolveCatalogName(rs.getString(1));
+                final String schemaName = rs.getString(2);
+                final String tableName = rs.getString(3);
+                final String tableType = rs.getString(4);
+                if (isTableType(tableType)) {
+                    TableId tableId = new TableId(catalogName, schemaName, tableName);
+                    if (tableFilter == null || tableFilter.isIncluded(tableId)) {
+                        tableIds.add(tableId);
+                        attributesByTable.putAll(getAttributeDetails(tableId, tableType));
+                    }
+                }
+                else {
+                    TableId tableId = new TableId(catalogName, schemaName, tableName);
+                    viewIds.add(tableId);
+                }
+            }
+        }
+        LOGGER.debug("{} table(s) will be scanned", tableIds.size());
 
-		Map<TableId, List<Column>> columnsByTable = new HashMap<>();
+        Map<TableId, List<Column>> columnsByTable = new HashMap<>();
 
-		//Unlike other databases, Ingres getColumns returns columns for non-table entities too, so we need to query per table
-		for (TableId includeTable : tableIds) {
-			LOGGER.debug("Retrieving columns of table {}", includeTable);
+        // Unlike other databases, Ingres getColumns returns columns for non-table entities too, so we need to query per table
+        for (TableId includeTable : tableIds) {
+            LOGGER.debug("Retrieving columns of table {}", includeTable);
 
-			Map<TableId, List<Column>> cols = getColumnsDetails(databaseCatalog, schemaNamePattern,
-					includeTable.table(), tableFilter, columnFilter, metadata, viewIds);
-			columnsByTable.putAll(cols);
-		}
+            Map<TableId, List<Column>> cols = getColumnsDetails(databaseCatalog, schemaNamePattern,
+                    includeTable.table(), tableFilter, columnFilter, metadata, viewIds);
+            columnsByTable.putAll(cols);
+        }
 
-		// Read the metadata for the primary keys ...
-		for (Entry<TableId, List<Column>> tableEntry : columnsByTable.entrySet()) {
-			// First get the primary key information, which must be done for *each* table ...
-			List<String> pkColumnNames = readPrimaryKeyOrUniqueIndexNames(metadata, tableEntry.getKey());
+        // Read the metadata for the primary keys ...
+        for (Entry<TableId, List<Column>> tableEntry : columnsByTable.entrySet()) {
+            // First get the primary key information, which must be done for *each* table ...
+            List<String> pkColumnNames = readPrimaryKeyOrUniqueIndexNames(metadata, tableEntry.getKey());
 
-			// Then define the table ...
-			List<Column> columns = tableEntry.getValue();
-			Collections.sort(columns);
-			String defaultCharsetName = null; // JDBC does not expose character sets
-			List<Attribute> attributes = attributesByTable.getOrDefault(tableEntry.getKey(), Collections.emptyList());
-			tables.overwriteTable(tableEntry.getKey(), columns, pkColumnNames, defaultCharsetName, attributes);
-		}
+            // Then define the table ...
+            List<Column> columns = tableEntry.getValue();
+            Collections.sort(columns);
+            String defaultCharsetName = null; // JDBC does not expose character sets
+            List<Attribute> attributes = attributesByTable.getOrDefault(tableEntry.getKey(), Collections.emptyList());
+            tables.overwriteTable(tableEntry.getKey(), columns, pkColumnNames, defaultCharsetName, attributes);
+        }
 
-		if (removeTablesNotFoundInJdbc) {
-			// Remove any definitions for tables that were not found in the database metadata ...
-			tableIdsBefore.removeAll(columnsByTable.keySet());
-			tableIdsBefore.forEach(tables::removeTable);
-		}
-	}
+        if (removeTablesNotFoundInJdbc) {
+            // Remove any definitions for tables that were not found in the database metadata ...
+            tableIdsBefore.removeAll(columnsByTable.keySet());
+            tableIdsBefore.forEach(tables::removeTable);
+        }
+    }
 
     /**
      * Returns a JDBC connection string for the current configuration.
@@ -221,7 +223,6 @@ public class IngresConnection extends JdbcConnection {
 
     @Override
     public String quotedTableIdString(TableId tableId) {
-        // TODO: Unless DELIMIDENT is set, table names cannot be quoted
         StringBuilder builder = new StringBuilder();
 
         String catalogName = tableId.catalog();
@@ -237,19 +238,13 @@ public class IngresConnection extends JdbcConnection {
         return builder.append(tableId.table()).toString();
     }
 
-    @Override
-    public String quotedColumnIdString(String columnName) {
-        // TODO: Unless DELIMIDENT is set, column names cannot be quoted
-        return columnName;
-    }
-
     public DataSource datasource() {
         return new DataSource() {
             private PrintWriter logWriter;
 
             @Override
             public Connection getConnection() throws SQLException {
-            	JdbcConfiguration config = JdbcConfiguration.copy(config()).build();
+                JdbcConfiguration config = JdbcConfiguration.copy(config()).build();
                 return FACTORY.connect(config);
             }
 

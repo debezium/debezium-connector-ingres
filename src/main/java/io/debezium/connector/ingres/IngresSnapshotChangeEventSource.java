@@ -6,7 +6,6 @@
 package io.debezium.connector.ingres;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
@@ -52,11 +51,11 @@ public class IngresSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     private final IngresConnection jdbcConnection;
 
     public IngresSnapshotChangeEventSource(IngresConnectorConfig connectorConfig,
-                                             MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory,
-                                             IngresDatabaseSchema schema, EventDispatcher<IngresPartition, TableId> dispatcher,
-                                             Clock clock, SnapshotProgressListener<IngresPartition> snapshotProgressListener,
-                                             NotificationService<IngresPartition, IngresOffsetContext> notificationService,
-                                             SnapshotterService snapshotterService) {
+                                           MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory,
+                                           IngresDatabaseSchema schema, EventDispatcher<IngresPartition, TableId> dispatcher,
+                                           Clock clock, SnapshotProgressListener<IngresPartition> snapshotProgressListener,
+                                           NotificationService<IngresPartition, IngresOffsetContext> notificationService,
+                                           SnapshotterService snapshotterService) {
         super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService, snapshotterService);
         this.connectorConfig = connectorConfig;
         this.jdbcConnection = connectionFactory.mainConnection();
@@ -76,7 +75,7 @@ public class IngresSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     protected Set<TableId> getAllTableIds(RelationalSnapshotContext<IngresPartition, IngresOffsetContext> ctx) throws Exception {
         return jdbcConnection.readAllTableNames(new String[]{ "TABLE" });
     }
-   
+
     @Override
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
                                                RelationalSnapshotContext<IngresPartition, IngresOffsetContext> snapshotContext)
@@ -91,13 +90,13 @@ public class IngresSnapshotChangeEventSource extends RelationalSnapshotChangeEve
         }
         else if (connectorConfig.getSnapshotIsolationMode() == SnapshotIsolationMode.EXCLUSIVE
                 || connectorConfig.getSnapshotIsolationMode() == SnapshotIsolationMode.REPEATABLE_READ) {
-        	
-        	//FIXME: Do we need this?
-            //jdbcConnection.connection().setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+
+            // FIXME: Do we need this?
+            // jdbcConnection.connection().setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             ((IngresSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("ingres_schema_snapshot");
 
             LOGGER.info("Executing schema locking");
-            //ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY
+            // ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY
             try (Statement statement = jdbcConnection.connection().createStatement()) {
                 for (TableId tableId : snapshotContext.capturedTables) {
                     if (!sourceContext.isRunning()) {
@@ -135,51 +134,50 @@ public class IngresSnapshotChangeEventSource extends RelationalSnapshotChangeEve
     @Override
     protected void determineSnapshotOffset(RelationalSnapshotContext<IngresPartition, IngresOffsetContext> ctx, IngresOffsetContext previousOffset)
             throws SQLException {
-    	
-    	LOGGER.info("Determining Ingres snapshot offset.");
-    	
+
+        LOGGER.info("Determining Ingres snapshot offset.");
+
         IngresOffsetContext offset = ctx.offset;
         if (offset == null) {
             if (previousOffset != null) {
                 offset = previousOffset;
             }
             else {
-            	LOGGER.info("No previous offset available, determining current commit log position.");
-            	HeaderRecord currentCommitRecord = null;
-            	DataSource ds = jdbcConnection.datasource();
-            	try(Connection c = ds.getConnection()) {
-        			try(Statement s = c.createStatement()) {
-        				String tableName = connectorConfig.getMarkerTable();
-        				s.execute("CREATE TABLE IF NOT EXISTS " + tableName + " (c char(20))");
-        				TableId markerTable = jdbcConnection.readTableNames(null, null, tableName, null).iterator().next();
-        				if(markerTable == null) {
-							throw new SQLException("Ingres Connector failed to detect CDC header marker table.");
-						}
-        				try(CDCLogStream stream = CDCLogStream.builder(ds)
-        						.timeout(1)
-        						.publication(new CDCPublication()
-        								.name(tableName)
-        								.table(tableName)
-        								.owner(markerTable.schema())
-        						)
-        						.build()) {
-        					
-        					String uuid = UUID.randomUUID().toString();
-        					
-        					s.execute("INSERT INTO " + tableName + " values(" + "'" + uuid + "'" + ")");
-        					s.execute("DELETE FROM " + tableName + " WHERE c = " + "'" + uuid + "'");
-        					currentCommitRecord = Stream.generate(stream)
-        					.limit(5)
-        					.filter(r -> r instanceof CommitRecord)
-        					.findFirst().orElseThrow(() -> new SQLException("Ingres Connector failed to read CDC header marker."))
-        					.unwrap(CommitRecord.class)
-        					.getHeader();
-        				}
-        				//FIXME: find a way to drop this and ignore this table in the schema detection
-        				s.execute("DROP TABLE IF EXISTS cdc_header_marker");
-        			}
-        		}
-            	LOGGER.info("Current commit log position determined: {}", currentCommitRecord);
+                LOGGER.info("No previous offset available, determining current commit log position.");
+                HeaderRecord currentCommitRecord = null;
+                DataSource ds = jdbcConnection.datasource();
+                try (Connection c = ds.getConnection()) {
+                    try (Statement s = c.createStatement()) {
+                        String tableName = connectorConfig.getMarkerTable();
+                        s.execute("CREATE TABLE IF NOT EXISTS " + tableName + " (c char(20))");
+                        TableId markerTable = jdbcConnection.readTableNames(null, null, tableName, null).iterator().next();
+                        if (markerTable == null) {
+                            throw new SQLException("Ingres Connector failed to detect CDC header marker table.");
+                        }
+                        try (CDCLogStream stream = CDCLogStream.builder(ds)
+                                .timeout(1)
+                                .publication(new CDCPublication()
+                                        .name(tableName)
+                                        .table(tableName)
+                                        .owner(markerTable.schema()))
+                                .build()) {
+
+                            String uuid = UUID.randomUUID().toString();
+
+                            s.execute("INSERT INTO " + tableName + " values(" + "'" + uuid + "'" + ")");
+                            s.execute("DELETE FROM " + tableName + " WHERE c = " + "'" + uuid + "'");
+                            currentCommitRecord = Stream.generate(stream)
+                                    .limit(5)
+                                    .filter(r -> r instanceof CommitRecord)
+                                    .findFirst().orElseThrow(() -> new SQLException("Ingres Connector failed to read CDC header marker."))
+                                    .unwrap(CommitRecord.class)
+                                    .getHeader();
+                        }
+                        // FIXME: find a way to drop this and ignore this table in the schema detection
+                        s.execute("DROP TABLE IF EXISTS cdc_header_marker");
+                    }
+                }
+                LOGGER.info("Current commit log position determined: {}", currentCommitRecord);
                 offset = new IngresOffsetContext(
                         connectorConfig,
                         new TxLogPosition(currentCommitRecord, null, null),

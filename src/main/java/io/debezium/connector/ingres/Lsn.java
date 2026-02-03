@@ -18,7 +18,7 @@ public class Lsn implements Comparable<Lsn>, Nullable {
 
     public static final Lsn NULL = new Lsn(-1L);
     private final Long sequence;
-    
+
     private final long lsnHigh;
     private final long lsnLow;
 
@@ -27,11 +27,11 @@ public class Lsn implements Comparable<Lsn>, Nullable {
         this.lsnHigh = 0L;
         this.lsnLow = 0L;
     }
-    
-    Lsn(long lsnHigh,long lshLow) {
-    		this.sequence = 0L;
-    		this.lsnHigh = lsnHigh;
-    		this.lsnLow = lshLow;
+
+    Lsn(long lsnHigh, long lshLow) {
+        this.sequence = 0L;
+        this.lsnHigh = lsnHigh;
+        this.lsnLow = lshLow;
     }
 
     /**
@@ -65,7 +65,7 @@ public class Lsn implements Comparable<Lsn>, Nullable {
      * @return LSN representing the given log file unique id and position within the log file
      */
     public static Lsn of(long lsnHigh, long lshLow) {
-    		return new Lsn(lsnHigh, lshLow);
+        return new Lsn(lsnHigh, lshLow);
     }
 
     /**
@@ -116,16 +116,16 @@ public class Lsn implements Comparable<Lsn>, Nullable {
         if (this == o) {
             return 0;
         }
-        if(lsnHigh != o.lsnHigh) {
-				return Long.compareUnsigned(lsnHigh, o.lsnHigh);
-		}
+        if (lsnHigh != o.lsnHigh) {
+            return Long.compareUnsigned(lsnHigh, o.lsnHigh);
+        }
         else {
-        		if(lsnLow != o.lsnLow) {
-				return Long.compareUnsigned(lsnLow, o.lsnLow);
-			}
-			else {
-				return 0;
-			}
+            if (lsnLow != o.lsnLow) {
+                return Long.compareUnsigned(lsnLow, o.lsnLow);
+            }
+            else {
+                return 0;
+            }
         }
     }
 }

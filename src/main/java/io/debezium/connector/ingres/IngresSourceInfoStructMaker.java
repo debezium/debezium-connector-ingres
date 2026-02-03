@@ -14,8 +14,6 @@ import io.debezium.connector.AbstractSourceInfoStructMaker;
 public class IngresSourceInfoStructMaker extends AbstractSourceInfoStructMaker<SourceInfo> {
 
     private Schema schema;
-    
-
 
     @Override
     public void init(String connector, String version, CommonConnectorConfig connectorConfig) {
@@ -42,20 +40,20 @@ public class IngresSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
 
         if (sourceInfo.getTableId() != null) {
             ret
-            .put(SourceInfo.SCHEMA_NAME_KEY, sourceInfo.getTableId().schema())
-            .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.getTableId().table());
+                    .put(SourceInfo.SCHEMA_NAME_KEY, sourceInfo.getTableId().schema())
+                    .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.getTableId().table());
         }
-        if(sourceInfo.getBeginRecord()!= null) {
-			ret.put(SourceInfo.BEGIN_HEADER, sourceInfo.getBeginRecord().toBase64());
-		}
+        if (sourceInfo.getBeginRecord() != null) {
+            ret.put(SourceInfo.BEGIN_HEADER, sourceInfo.getBeginRecord().toBase64());
+        }
         if (sourceInfo.getCommitRecord() != null) {
             ret.put(SourceInfo.COMMIT_HEADER, sourceInfo.getCommitRecord().toBase64());
         }
         if (sourceInfo.getChangeRecord() != null) {
             ret.put(SourceInfo.CHANGE_HEADER, sourceInfo.getChangeRecord().toBase64());
         }
-        
-        //FIXME what to do about the txId?
+
+        // FIXME what to do about the txId?
         if (sourceInfo.getTxId() >= 0x00) {
             ret.put(SourceInfo.TX_ID_KEY, sourceInfo.getTxId().toString());
         }

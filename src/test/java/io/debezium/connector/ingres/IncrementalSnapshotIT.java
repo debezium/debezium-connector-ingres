@@ -9,31 +9,25 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import io.debezium.DebeziumException;
 import io.debezium.config.Configuration.Builder;
 import io.debezium.connector.ingres.IngresConnectorConfig.SnapshotMode;
 import io.debezium.connector.ingres.util.TestHelper;
 import io.debezium.jdbc.JdbcConnection;
-import io.debezium.junit.ConditionalFail;
 import io.debezium.junit.Flaky;
 import io.debezium.pipeline.source.snapshot.incremental.AbstractIncrementalSnapshotTest;
 
 @Flaky("DBZ-8114")
 public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<IngresConnector> {
 
-    @Rule
-    public TestRule conditionalFail = new ConditionalFail();
-
     private IngresConnection connection;
 
-    @Before
+    @BeforeEach
     public void before() throws SQLException {
         connection = TestHelper.testConnection();
         TestHelper.dropTables(connection, "a", "b", "c", "debezium_signal");
@@ -47,7 +41,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Ingre
         Print.disable();
     }
 
-    @After
+    @AfterEach
     public void after() throws SQLException {
         /*
          * Since all DDL operations are forbidden during Ingres CDC,
@@ -180,7 +174,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Ingre
     }
 
     @Test
-    @Ignore("Ingres does not support DDL operations on tables defined for replication")
+    @Disabled("Ingres does not support DDL operations on tables defined for replication")
     @Override
     public void snapshotPreceededBySchemaChange() throws Exception {
         super.snapshotPreceededBySchemaChange();

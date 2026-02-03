@@ -5,13 +5,13 @@
  */
 package io.debezium.connector.ingres;
 
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import io.debezium.config.AbstractFieldTest;
 
 public class FieldTest extends AbstractFieldTest {
 
-    @Before
+    @BeforeEach
     public void before() {
         setAllConnectorFields(IngresConnectorConfig.ALL_FIELDS);
     }

@@ -22,16 +22,16 @@ import io.debezium.relational.TableId;
  */
 @NotThreadSafe
 public class SourceInfo extends BaseSourceInfo {
-	public static final String CHANGE_HEADER = "change_header";
-	public static final String COMMIT_HEADER = "commit_header";
+    public static final String CHANGE_HEADER = "change_header";
+    public static final String COMMIT_HEADER = "commit_header";
     public static final String BEGIN_HEADER = "begin_header";
-    
+
     public static final String TX_ID_KEY = "txId"; // Schema name mapping collision
 
     private Long txId = -1L;
     private Instant timestamp;
     private TableId tableId;
-    
+
     private HeaderRecord commitRecord;
     private HeaderRecord changeRecord;
     private HeaderRecord beginRecord;
@@ -71,30 +71,30 @@ public class SourceInfo extends BaseSourceInfo {
     public void setTableId(TableId tableId) {
         this.tableId = tableId;
     }
-    
+
     public void setCommitRecord(HeaderRecord commitRecord) {
-		this.commitRecord = commitRecord;
-	}
-    
+        this.commitRecord = commitRecord;
+    }
+
     public void setChangeRecord(HeaderRecord changeRecord) {
-    	this.changeRecord = changeRecord;
+        this.changeRecord = changeRecord;
     }
-    
+
     public void setBeginRecord(HeaderRecord beginRecord) {
-		this.beginRecord = beginRecord;
-	}
-    
-    public HeaderRecord getBeginRecord() {
-    	return this.beginRecord;
+        this.beginRecord = beginRecord;
     }
-    
+
+    public HeaderRecord getBeginRecord() {
+        return this.beginRecord;
+    }
+
     public HeaderRecord getChangeRecord() {
-		return this.changeRecord;
-	}
+        return this.changeRecord;
+    }
 
     public HeaderRecord getCommitRecord() {
-    	return this.commitRecord;
-	}
+        return this.commitRecord;
+    }
 
     @Override
     public String toString() {
