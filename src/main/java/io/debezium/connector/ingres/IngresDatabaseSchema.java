@@ -46,7 +46,8 @@ public class IngresDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                         customConverterRegistry,
                         connectorConfig.getSourceInfoStructMaker().schema(),
                         connectorConfig.getFieldNamer(),
-                        connectorConfig.multiPartitionMode()),
+                        connectorConfig.multiPartitionMode(),
+                        connectorConfig.getEventConvertingFailureHandlingMode()),
                 true,
                 connectorConfig.getKeyMapper(), taskContext);
     }
