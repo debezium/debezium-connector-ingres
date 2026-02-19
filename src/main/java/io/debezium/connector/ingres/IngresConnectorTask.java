@@ -81,7 +81,6 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
 
     @Override
     protected ChangeEventSourceCoordinator<IngresPartition, IngresOffsetContext> start(Configuration config) {
-        final IngresConnectorConfig connectorConfig = new IngresConnectorConfig(config);
         final TopicNamingStrategy<TableId> topicNamingStrategy = connectorConfig.getTopicNamingStrategy(CommonConnectorConfig.TOPIC_NAMING_STRATEGY);
         final SchemaNameAdjuster schemaNameAdjuster = connectorConfig.schemaNameAdjuster();
 
@@ -100,6 +99,9 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
         final IngresValueConverters valueConverters = new IngresValueConverters(connectorConfig.getDecimalMode(), connectorConfig.getTemporalPrecisionMode(),
                 connectorConfig.binaryHandlingMode());
 
+        // Service providers
+        registerServiceProviders(connectorConfig.getServiceRegistry());
+
         CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
         schema = new IngresDatabaseSchema(connectorConfig, topicNamingStrategy, valueConverters, schemaNameAdjuster, dataConnection, customConverterRegistry,
                 taskContext);
@@ -115,6 +117,7 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
         connectorConfig.getBeanRegistry().add(StandardBeanNames.JDBC_CONNECTION, dataConnection);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.VALUE_CONVERTER, valueConverters);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.OFFSETS, previousOffsets);
+        connectorConfig.getBeanRegistry().add(StandardBeanNames.CDC_SOURCE_TASK_CONTEXT, taskContext);
 
         // Service providers
         registerServiceProviders(connectorConfig.getServiceRegistry());

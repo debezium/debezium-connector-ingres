@@ -393,7 +393,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
         super(
                 IngresConnector.class,
                 config,
-                new SystemTablesPredicate(),
+                new SystemTablesPredicate(config),
                 t -> t.catalog() + '.' + t.schema() + '.' + t.table(),
                 false,
                 ColumnFilterMode.SCHEMA,
@@ -471,10 +471,15 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     }
 
     private static class SystemTablesPredicate implements TableFilter {
-
+    	private final String markerTable;
+    	
+    	public SystemTablesPredicate(Configuration config) {
+    		this.markerTable = config.getString(CDC_MARKER_TABLE);
+		}
+    	
         @Override
         public boolean isIncluded(TableId t) {
-            return !(t.table().toLowerCase().startsWith("cdc_header_marker"));
+            return !(t.table().toLowerCase().startsWith(markerTable.toLowerCase()));
         }
     }
 }
