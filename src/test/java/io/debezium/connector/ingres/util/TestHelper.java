@@ -19,8 +19,8 @@ import io.debezium.storage.file.history.FileSchemaHistory;
 import io.debezium.util.Testing;
 
 public class TestHelper {
-	
-	//FIXME: change these values as per your test database
+
+    // FIXME: change these values as per your test database
     public static final String TEST_DATABASE = "db";
     public static final String TEST_CONNECTOR = "ingres_server";
     public static final String TEST_SCHEMA = "ingres";
@@ -40,32 +40,32 @@ public class TestHelper {
      * Key for schema parameter used to store a source column's type scale.
      */
     public static final String TYPE_SCALE_PARAMETER_KEY = "__debezium.source.column.scale";
-    
+
     public static String getDBName() {
-		return TEST_DATABASE;
-	}
-    
+        return TEST_DATABASE;
+    }
+
     public static String getDBPrefix() {
-		return TEST_DATABASE + "." + TEST_SCHEMA + ".";
-	}
-    
+        return TEST_DATABASE + "." + TEST_SCHEMA + ".";
+    }
+
     public static String getSchemaPrefix() {
-    	return TEST_SCHEMA + ".";
+        return TEST_SCHEMA + ".";
     }
-    
+
     public static String topicName(String tableName) {
-    	return getDBPrefix() + tableName;
+        return getDBPrefix() + tableName;
     }
-    
+
     /**
      * How to define the prefix database/schema/table name for including tables for the connector
      * @param tableName
      * @return String full table name with database and schema
      */
     public static String includePrefix(String tableName) {
-    	return getDBPrefix() + tableName;
-	}
-    
+        return getDBPrefix() + tableName;
+    }
+
     public static JdbcConfiguration adminJdbcConfig() {
         return JdbcConfiguration.copy(Configuration.fromSystemProperties(IngresConnectorConfig.DATABASE_CONFIG_PREFIX))
                 .build();
