@@ -110,17 +110,17 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Ingre
 
     @Override
     protected String tableDataCollectionId() {
-        return TestHelper.TEST_DATABASE + '.' + tableName();
+        return TestHelper.includePrefix(tableName());
     }
 
     @Override
     protected List<String> tableDataCollectionIds() {
-        return tableNames().stream().map(name -> TestHelper.TEST_DATABASE + '.' + name).collect(Collectors.toList());
+        return tableNames().stream().map(name -> TestHelper.includePrefix(name)).collect(Collectors.toList());
     }
 
     @Override
     protected String noPKTableDataCollectionId() {
-        return TestHelper.TEST_DATABASE + "." + noPKTableName();
+        return TestHelper.includePrefix(noPKTableName());
     }
 
     @Override
@@ -130,7 +130,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Ingre
 
     @Override
     protected String signalTableNameSanitized() {
-        return TestHelper.TEST_DATABASE + '.' + signalTableName();
+        return TestHelper.includePrefix(signalTableName());
     }
 
     protected String tableIncludeList() {

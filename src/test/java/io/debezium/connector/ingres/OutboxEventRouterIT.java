@@ -38,7 +38,7 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
 
     @BeforeEach
     @Override
-    public void beforeEach() throws Exception {
+    protected void beforeEach() throws Exception {
         connection = TestHelper.testConnection();
 
         initializeConnectorTestFramework();
@@ -48,7 +48,7 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
     }
 
     @AfterEach
-    public void afterEach() throws Exception {
+    protected void afterEach() throws Exception {
         stopConnector();
         waitForConnectorShutdown(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
         assertConnectorNotRunning();
@@ -74,7 +74,7 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
         final SnapshotMode snapshotMode = initialSnapshot ? SnapshotMode.INITIAL : SnapshotMode.NO_DATA;
         return TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, snapshotMode.getValue())
-                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.getDBPrefix() + tableName());
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix(tableName()));
     }
 
     @Override
@@ -143,8 +143,8 @@ public class OutboxEventRouterIT extends AbstractEventRouterTest<IngresConnector
     @Override
     protected void alterTableWithExtra4Fields() throws Exception {
         connection.execute("ALTER TABLE outbox add version integer default 1 not null");
-        connection.execute("ALTER TABLE outbox add somebooltype boolean");
-        connection.execute("ALTER TABLE outbox add createdat ansidate");
+        connection.execute("ALTER TABLE outbox add somebooltype boolean not null default false");
+        connection.execute("ALTER TABLE outbox add createdat timestamp");
         connection.execute("ALTER TABLE outbox add is_deleted boolean default false");
     }
 

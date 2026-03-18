@@ -211,17 +211,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
         catch (SQLException e) {
             // ignore
         }
-        Arrays.asList(ALL_DDLS).forEach(ddl -> {
-            Testing.print("DDL: " + ddl);
-            try {
-                connection.execute(ddl);
-            }
-            catch (SQLException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        });
-        // connection.execute(ALL_DDLS);
+        connection.execute(ALL_DDLS);
     }
 
     public static void dropTables() throws SQLException {

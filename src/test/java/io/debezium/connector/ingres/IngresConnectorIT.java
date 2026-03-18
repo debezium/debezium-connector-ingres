@@ -133,10 +133,10 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         consumeRecordsByTopic(RECORDS_PER_TABLE * TABLES);
 
         connection.execute("DELETE FROM tableB");
-
+        connection.commit();
         final SourceRecords deleteRecords = consumeRecordsByTopic(RECORDS_PER_TABLE);
-        final List<SourceRecord> deleteTableA = deleteRecords.recordsForTopic(TestHelper.getSchemaPrefix() + "tablea");
-        final List<SourceRecord> deleteTableB = deleteRecords.recordsForTopic(TestHelper.getSchemaPrefix() + "tableb");
+        final List<SourceRecord> deleteTableA = deleteRecords.recordsForTopic(TestHelper.topicName("tablea"));
+        final List<SourceRecord> deleteTableB = deleteRecords.recordsForTopic(TestHelper.topicName("tableb"));
         assertThat(deleteTableA).isNullOrEmpty();
         assertThat(deleteTableB).hasSize(RECORDS_PER_TABLE);
         assertNoRecordsToConsume();
@@ -233,9 +233,9 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         consumeRecordsByTopic(RECORDS_PER_TABLE);
 
         connection.execute("truncate table truncate_table");
-
+        
         SourceRecords sourceRecords = consumeRecordsByTopic(1);
-        List<SourceRecord> truncateTable = sourceRecords.recordsForTopic(TestHelper.getSchemaPrefix() + "truncate_table");
+        List<SourceRecord> truncateTable = sourceRecords.recordsForTopic(TestHelper.topicName("truncate_table"));
         assertThat(truncateTable).isNotNull().hasSize(1);
         assertNoRecordsToConsume();
 
@@ -266,8 +266,8 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         waitForAvailableRecords();
 
         final SourceRecords records = consumeRecordsByTopic(6);
-        final List<SourceRecord> tableA = records.recordsForTopic(TestHelper.getSchemaPrefix() + "tablea");
-        final List<SourceRecord> tableB = records.recordsForTopic(TestHelper.getSchemaPrefix() + "tableb");
+        final List<SourceRecord> tableA = records.recordsForTopic(TestHelper.topicName("tablea"));
+        final List<SourceRecord> tableB = records.recordsForTopic(TestHelper.topicName("tableb"));
         assertThat(tableA).hasSize(3);
         assertThat(tableB).hasSize(3);
         assertNoRecordsToConsume();
@@ -560,11 +560,11 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
             assertThat(recordA.sourceOffset().get("snapshot")).as("Streaming phase").isNull();
             assertThat(recordA.sourceOffset().get("snapshot_completed")).as("Streaming phase").isNull();
-            assertThat(recordA.sourceOffset().get("change_lsn")).as("LSN present").isNotNull();
+            assertThat(recordA.sourceOffset().get("change_header")).as("change_header present").isNotNull();
 
             assertThat(recordB.sourceOffset().get("snapshot")).as("Streaming phase").isNull();
             assertThat(recordB.sourceOffset().get("snapshot_completed")).as("Streaming phase").isNull();
-            assertThat(recordB.sourceOffset().get("change_lsn")).as("LSN present").isNotNull();
+            assertThat(recordB.sourceOffset().get("change_header")).as("change_header present").isNotNull();
         }
     }
 
@@ -574,7 +574,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final int ID_START = 50;
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
-                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.getSchemaPrefix() + "tableb")
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tableb"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -604,7 +604,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final int ID_START = 60;
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
-                .with(IngresConnectorConfig.TABLE_EXCLUDE_LIST, TestHelper.getSchemaPrefix() + "tablea")
+                .with(IngresConnectorConfig.TABLE_EXCLUDE_LIST, TestHelper.includePrefix("tablea"))
                 .build();
 
         connection.execute("INSERT INTO tableb VALUES(1, 'b')");
@@ -649,7 +649,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
     public void testColumnIncludeList(SnapshotMode snapshotMode) throws Exception {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, snapshotMode)
-                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, "dt_table")
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("dt_table"))
                 .with(IngresConnectorConfig.COLUMN_INCLUDE_LIST,
                         TestHelper.TEST_SCHEMA + ".dt_table.id,"
                                 + TestHelper.TEST_SCHEMA + ".dt_table.c1,"
@@ -684,7 +684,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final List<SourceRecord> table = records.recordsForTopic(TestHelper.topicName("dt_table"));
         assertThat(table).hasSize(expectedRecords);
         Schema aSchema = SchemaBuilder.struct().optional()
-                .name("testdb.informix.dt_table.Value")
+                .name(TestHelper.includePrefix("dt_table") + ".Value")
                 .field("id", Schema.INT32_SCHEMA)
                 .field("c1", Schema.OPTIONAL_INT32_SCHEMA)
                 .field("c2", Schema.OPTIONAL_INT32_SCHEMA)
@@ -752,7 +752,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final List<SourceRecord> table = records.recordsForTopic(TestHelper.topicName("dt_table"));
         assertThat(table).hasSize(expectedRecords);
         Schema aSchema = SchemaBuilder.struct().optional()
-                .name(TestHelper.getSchemaPrefix() + "dt_table.Value")
+                .name(TestHelper.getDBPrefix() + "dt_table.Value")
                 .field("id", Schema.INT32_SCHEMA)
                 .field("c1", Schema.OPTIONAL_INT32_SCHEMA)
                 .field("c2", Schema.OPTIONAL_INT32_SCHEMA)
@@ -854,7 +854,6 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
                 new SchemaAndValueField("colb", Schema.OPTIONAL_STRING_SCHEMA, "b"));
         assertRecord((Struct) value.get(FieldName.AFTER), expectedLastRow);
 
-        waitForConnectorShutdown(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
         stopConnector();
         assertConnectorNotRunning();
 
@@ -972,10 +971,10 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
     public void shouldConsumeEventsWithMaskedAndTruncatedColumns() throws Exception {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
-                .with("column.mask.with.12.chars", "testdb.informix.masked_hashed_column_table.name")
+                .with("column.mask.with.12.chars", TestHelper.getDBPrefix() + "masked_hashed_column_table.name")
                 .with("column.mask.hash.SHA-256.with.salt.CzQMA0cB5K",
-                        "testdb.informix.masked_hashed_column_table.name2,testdb.informix.masked_hashed_column_table.name3")
-                .with("column.truncate.to.4.chars", "testdb.informix.truncated_column_table.name")
+                		TestHelper.getDBPrefix() + "masked_hashed_column_table.name2," + TestHelper.getDBPrefix() + "masked_hashed_column_table.name3")
+                .with("column.truncate.to.4.chars", TestHelper.getDBPrefix() + "truncated_column_table.name")
                 .build();
 
         start(IngresConnector.class, config);
@@ -985,8 +984,8 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         waitForStreamingRunning(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
         waitForAvailableRecords(waitTimeForRecords(), TimeUnit.SECONDS);
 
-        connection.execute("INSERT INTO masked_hashed_column_table (id, name, name2, name3) VALUES (10, \"some_name\", \"test\", \"test\")");
-        connection.execute("INSERT INTO truncated_column_table VALUES(11, \"some_name\")");
+        connection.execute("INSERT INTO masked_hashed_column_table (id, name, name2, name3) VALUES (10, 'some_name', 'test', 'test')");
+        connection.execute("INSERT INTO truncated_column_table VALUES(11, 'some_name')");
 
         waitForAvailableRecords();
 
@@ -1114,7 +1113,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         for (SourceRecord record : tablea) {
             CloudEventsConverterTest.shouldConvertToCloudEventsInJson(record, false);
             CloudEventsConverterTest.shouldConvertToCloudEventsInJsonWithDataAsAvro(record, false);
-            CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "informix", TestHelper.TEST_DATABASE, false);
+            CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "ingres", TestHelper.TEST_DATABASE, false);
         }
 
         // Wait for streaming to start
@@ -1126,16 +1125,16 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
         records = consumeRecordsByTopic(1);
 
-        tablea = records.recordsForTopic("testdb.informix.tablea");
+        tablea = records.recordsForTopic(TestHelper.topicName("tablea"));
         assertThat(tablea).hasSize(1);
         assertNoRecordsToConsume();
 
         for (SourceRecord record : tablea) {
             CloudEventsConverterTest.shouldConvertToCloudEventsInJson(record, false, jsonNode -> {
-                assertThat(jsonNode.get(CloudEventsMaker.FieldName.ID).asText()).contains("commit_lsn:");
+                assertThat(jsonNode.get(CloudEventsMaker.FieldName.ID).asText()).contains("commit_header:");
             });
             CloudEventsConverterTest.shouldConvertToCloudEventsInJsonWithDataAsAvro(record, false);
-            CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "informix", TestHelper.TEST_DATABASE, false);
+            CloudEventsConverterTest.shouldConvertToCloudEventsInAvro(record, "ingres", TestHelper.TEST_DATABASE, false);
         }
     }
 
@@ -1150,8 +1149,8 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
                 .with(IngresConnectorConfig.INCLUDE_SCHEMA_CHANGES, false)
                 .build();
 
-        connection.execute("INSERT INTO always_snapshot VALUES (1,'Test1');");
-        connection.execute("INSERT INTO always_snapshot VALUES (2,'Test2');");
+        connection.execute("INSERT INTO always_snapshot VALUES (1,'Test1')");
+        connection.execute("INSERT INTO always_snapshot VALUES (2,'Test2')");
 
         start(IngresConnector.class, config);
         assertConnectorIsRunning();
@@ -1161,7 +1160,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
         int expectedRecordCount = 2;
         SourceRecords sourceRecords = consumeRecordsByTopic(expectedRecordCount);
-        assertThat(sourceRecords.recordsForTopic("testdb.informix.always_snapshot")).hasSize(expectedRecordCount);
+        assertThat(sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot"))).hasSize(expectedRecordCount);
         Struct struct = (Struct) ((Struct) sourceRecords.allRecordsInOrder().get(0).value()).get(FieldName.AFTER);
         assertEquals(1, struct.get("id"));
         assertEquals("Test1", struct.get("data"));
@@ -1174,8 +1173,8 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
         waitForConnectorShutdown(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
 
-        connection.execute("DELETE FROM ALWAYS_SNAPSHOT WHERE id=1;");
-        connection.execute("INSERT INTO ALWAYS_SNAPSHOT VALUES (3,'Test3');");
+        connection.execute("DELETE FROM ALWAYS_SNAPSHOT WHERE id=1");
+        connection.execute("INSERT INTO ALWAYS_SNAPSHOT VALUES (3,'Test3')");
 
         start(IngresConnector.class, config);
         assertConnectorIsRunning();
@@ -1188,11 +1187,11 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         // Check we get up-to-date data in the snapshot.
         assertThat(sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot"))).hasSize(expectedRecordCount);
         struct = (Struct) ((Struct) sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot")).get(0).value()).get(FieldName.AFTER);
-        assertEquals(3, struct.get("id"));
-        assertEquals("Test3", struct.get("data"));
-        struct = (Struct) ((Struct) sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot")).get(1).value()).get(FieldName.AFTER);
         assertEquals(2, struct.get("id"));
         assertEquals("Test2", struct.get("data"));
+        struct = (Struct) ((Struct) sourceRecords.recordsForTopic(TestHelper.topicName("always_snapshot")).get(1).value()).get(FieldName.AFTER);
+        assertEquals(3, struct.get("id"));
+        assertEquals("Test3", struct.get("data"));
     }
 
     @Test
@@ -1274,8 +1273,8 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
         waitForStreamingRunning(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
 
-        connection.execute("INSERT INTO tablea VALUES (2, '1');");
-        connection.execute("INSERT INTO tableb VALUES (2, '1');");
+        connection.execute("INSERT INTO tablea VALUES (2, '1')");
+        connection.execute("INSERT INTO tableb VALUES (2, '1')");
 
         waitForAvailableRecords();
 

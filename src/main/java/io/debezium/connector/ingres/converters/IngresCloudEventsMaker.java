@@ -22,8 +22,8 @@ import io.debezium.util.Collect;
  */
 public class IngresCloudEventsMaker extends CloudEventsMaker {
 
-    static final String CHANGE_LSN_KEY = "change_lsn";
-    static final String COMMIT_LSN_KEY = "commit_lsn";
+    static final String CHANGE_LSN_KEY = "change_header";
+    static final String COMMIT_LSN_KEY = "commit_header";
 
     static final Set<String> IFX_SOURCE_FIELDS = Collect.unmodifiableSet(CHANGE_LSN_KEY, COMMIT_LSN_KEY);
 
@@ -34,8 +34,8 @@ public class IngresCloudEventsMaker extends CloudEventsMaker {
     @Override
     public String ceId() {
         return "name:" + sourceField(AbstractSourceInfo.SERVER_NAME_KEY)
-                + ";change_lsn:" + sourceField(CHANGE_LSN_KEY)
-                + ";commit_lsn:" + sourceField(COMMIT_LSN_KEY);
+                + ";change_header:" + sourceField(CHANGE_LSN_KEY)
+                + ";commit_header:" + sourceField(COMMIT_LSN_KEY);
     }
 
     @Override

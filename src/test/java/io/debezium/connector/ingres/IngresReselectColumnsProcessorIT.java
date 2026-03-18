@@ -60,7 +60,7 @@ public class IngresReselectColumnsProcessorIT extends AbstractReselectProcessorT
     protected Configuration.Builder getConfigurationBuilder() {
         return TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.CUSTOM_POST_PROCESSORS, "reselector")
-                .with("reselector.type", ReselectColumnsPostProcessor.class.getName());
+                .with("post.processors.reselector.type", ReselectColumnsPostProcessor.class.getName());
     }
 
     @Override
