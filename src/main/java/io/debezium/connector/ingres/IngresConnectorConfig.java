@@ -286,7 +286,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
             .withDisplayName("Snapshot mode")
             .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 0))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
             .withDescription("The criteria for running a snapshot upon startup of the connector. "
@@ -297,7 +297,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     public static final Field SNAPSHOT_ISOLATION_MODE = Field.create("snapshot.isolation.mode")
             .withDisplayName("Snapshot isolation mode")
             .withEnum(SnapshotIsolationMode.class, SnapshotIsolationMode.REPEATABLE_READ)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 1))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
             .withDescription("Controls which transaction isolation level is used and how long the connector locks the monitored tables. "
@@ -315,7 +315,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
             .withEnum(SnapshotLockingMode.class, SnapshotLockingMode.EXCLUSIVE)
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 2))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withDescription(
                     "Controls how the connector holds locks on tables while performing the schema snapshot when `snapshot.isolation.mode` is `REPEATABLE_READ` or `EXCLUSIVE`. The 'exclusive' "
                             + "which means the connector will hold a table lock for exclusive table access for just the initial portion of the snapshot "
@@ -327,7 +327,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     public static final Field CDC_TIMEOUT = Field.create("cdc.timeout")
             .withDisplayName("CDC Engine timeout")
             .withType(ConfigDef.Type.INT)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED, 1))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED))
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.MEDIUM)
             .withDescription("Specifies a timeout to interrupt blocking to wait on an event, in seconds. "
@@ -339,7 +339,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     public static final Field CDC_MARKER_TABLE = Field.create("cdc.marker.table")
             .withDisplayName("CDC Marker Table")
             .withType(ConfigDef.Type.BOOLEAN)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED, 2))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED))
             .withWidth(Width.SHORT)
             .withImportance(Importance.MEDIUM)
             .withDescription("Name of the table used to determine CDC log positioning.")
@@ -350,19 +350,10 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
 
     private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
             .name("Ingres")
-            .type(
-                    HOSTNAME,
-                    PORT,
-                    USER,
-                    PASSWORD,
-                    DATABASE_NAME,
-                    QUERY_TIMEOUT_MS)
-            .connector(
-                    SNAPSHOT_MODE,
-                    SNAPSHOT_ISOLATION_MODE,
-                    INCREMENTAL_SNAPSHOT_CHUNK_SIZE,
-                    CDC_TIMEOUT)
-            .events(SOURCE_INFO_STRUCT_MAKER)
+            .group(Field.Group.CONNECTION, HOSTNAME, PORT, USER, PASSWORD, DATABASE_NAME, QUERY_TIMEOUT_MS)
+            .group(Field.Group.CONNECTOR_SNAPSHOT, SNAPSHOT_MODE, SNAPSHOT_ISOLATION_MODE, SNAPSHOT_LOCKING_MODE)
+            .group(Field.Group.CONNECTOR, INCREMENTAL_SNAPSHOT_CHUNK_SIZE, SOURCE_INFO_STRUCT_MAKER)
+            .group(Field.Group.CONNECTOR_ADVANCED, CDC_TIMEOUT, CDC_MARKER_TABLE)
             .excluding(
                     SCHEMA_INCLUDE_LIST,
                     SCHEMA_EXCLUDE_LIST,
