@@ -338,7 +338,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
 
     public static final Field CDC_MARKER_TABLE = Field.create("cdc.marker.table")
             .withDisplayName("CDC Marker Table")
-            .withType(ConfigDef.Type.BOOLEAN)
+            .withType(ConfigDef.Type.STRING)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED))
             .withWidth(Width.SHORT)
             .withImportance(Importance.MEDIUM)
