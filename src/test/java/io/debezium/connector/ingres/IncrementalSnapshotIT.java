@@ -130,7 +130,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Ingre
 
     @Override
     protected String signalTableNameSanitized() {
-        return TestHelper.includePrefix(signalTableName());
+        return TestHelper.topicName(signalTableName());
     }
 
     protected String tableIncludeList() {
@@ -142,10 +142,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Ingre
         return TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
                 .with(IngresConnectorConfig.SIGNAL_DATA_COLLECTION, this::signalTableNameSanitized)
-                .with(IngresConnectorConfig.MSG_KEY_COLUMNS, noPKTableDataCollectionId() + ":pk1,pk2,pk3,pk4")
-                .with(IngresConnectorConfig.STORE_ONLY_CAPTURED_TABLES_DDL, true)
-                .with(IngresConnectorConfig.INCLUDE_SCHEMA_CHANGES, false)
-                .with(IngresConnectorConfig.INCREMENTAL_SNAPSHOT_CHUNK_SIZE, 200);
+                .with(IngresConnectorConfig.MSG_KEY_COLUMNS, noPKTableDataCollectionId() + ":pk1,pk2,pk3,pk4");
     }
 
     @Override

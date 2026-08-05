@@ -75,7 +75,7 @@ public class IngresReselectColumnsProcessorIT extends AbstractReselectProcessorT
 
     @Override
     protected String reselectColumnsList() {
-        return "dbz4321:data";
+        return TestHelper.TEST_SCHEMA + ".dbz4321:data";
     }
 
     @Override

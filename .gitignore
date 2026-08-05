@@ -3,6 +3,8 @@ activemq-data/
 *.iml
 *.ipr
 *.iws
+.claude/
+CLAUDE.md
 .metadata/
 .recommenders/
 .classpath

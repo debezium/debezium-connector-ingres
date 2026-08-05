@@ -20,10 +20,10 @@ import io.debezium.util.Testing;
 
 public class TestHelper {
 
-    // FIXME: change these values as per your test database
-    public static final String TEST_DATABASE = "db";
+    // TODO: change these values as per your test database
+    public static final String TEST_DATABASE = "dbz";
     public static final String TEST_CONNECTOR = "ingres_server";
-    public static final String TEST_SCHEMA = "ingres";
+    public static final String TEST_SCHEMA = "u1";
     public static final Path SCHEMA_HISTORY_PATH = Testing.Files.createTestingPath("file-schema-history.txt").toAbsolutePath();
 
     /**
@@ -40,6 +40,35 @@ public class TestHelper {
      * Key for schema parameter used to store a source column's type scale.
      */
     public static final String TYPE_SCALE_PARAMETER_KEY = "__debezium.source.column.scale";
+
+    public static void setup() {
+
+        // TODO: change these values as per your test database
+        setDefaultProperty("database.dbname", TEST_DATABASE);
+        setDefaultProperty("database.user", "u1");
+        setDefaultProperty("database.password", "password");
+        setDefaultProperty("database.hostname", "hostname.com");
+        setDefaultProperty("database.port", "12345");
+
+        // Bound how long any statement (including teardown's DROP TABLE) can run before being
+        // cancelled, so a stuck lock/connection fails fast instead of hanging on the ~10 minute
+        // framework default.
+        setDefaultProperty("database.query.timeout.ms", "90000");
+
+        // Set this to give enough delay to debug Debezium events
+        setDefaultProperty("debezium.test.records.waittime", "30");
+        setDefaultProperty("debezium.test.engine.waittime", "30");
+    }
+
+    /**
+     * Sets a system property only if it hasn't already been set (e.g. via {@code -D} on the Maven
+     * command line), so callers can override any of these without editing this file.
+     */
+    private static void setDefaultProperty(String key, String defaultValue) {
+        if (System.getProperty(key) == null) {
+            System.setProperty(key, defaultValue);
+        }
+    }
 
     public static String getDBName() {
         return TEST_DATABASE;
@@ -67,6 +96,7 @@ public class TestHelper {
     }
 
     public static JdbcConfiguration adminJdbcConfig() {
+        setup();
         return JdbcConfiguration.copy(Configuration.fromSystemProperties(IngresConnectorConfig.DATABASE_CONFIG_PREFIX))
                 .build();
     }
@@ -80,14 +110,14 @@ public class TestHelper {
      * needed.
      */
     public static Configuration.Builder defaultConfig() {
-
         return Configuration.copy(defaultJdbcConfig().map(key -> IngresConnectorConfig.DATABASE_CONFIG_PREFIX + key))
-                .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_DATABASE)
-                .with(RelationalDatabaseConnectorConfig.SNAPSHOT_LOCK_TIMEOUT_MS, TimeUnit.SECONDS.toMillis(30))
-                .with(IngresConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class)
-                .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
-                .with(IngresConnectorConfig.INCLUDE_SCHEMA_CHANGES, false)
-                .with(IngresConnectorConfig.CDC_TIMEOUT, 1);
+                .withDefault(CommonConnectorConfig.TOPIC_PREFIX, TEST_DATABASE)
+                .withDefault(RelationalDatabaseConnectorConfig.SNAPSHOT_LOCK_TIMEOUT_MS, TimeUnit.SECONDS.toMillis(30))
+                .withDefault(IngresConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class)
+                .withDefault(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
+                .withDefault(IngresConnectorConfig.INCLUDE_SCHEMA_CHANGES, false)
+                .withDefault(IngresConnectorConfig.CDC_TIMEOUT, 3)
+                .withDefault(CommonConnectorConfig.EXECUTOR_SHUTDOWN_TIMEOUT_MS, 30_000);
     }
 
     public static IngresConnection adminConnection() {
@@ -109,6 +139,7 @@ public class TestHelper {
     }
 
     public static IngresConnection testConnection() {
+        setup();
         return LazyConnectionHolder.INSTANCE;
     }
 }

@@ -115,6 +115,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
                 .with(IngresConnectorConfig.TOMBSTONES_ON_DELETE, false)
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -162,6 +163,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
                 .with(IngresConnectorConfig.TOMBSTONES_ON_DELETE, true)
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -216,6 +218,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
                 .with(CommonConnectorConfig.SKIPPED_OPERATIONS, "none")
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("truncate_table"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -247,6 +250,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -343,6 +347,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -470,6 +475,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
                 .with(IngresConnectorConfig.CDC_TIMEOUT, 5)
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         for (int i = 0; i < RECORDS_PER_TABLE; i++) {
@@ -784,6 +790,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
                 .with(IngresConnectorConfig.CDC_TIMEOUT, 5)
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         if (restartJustAfterSnapshot) {
@@ -975,6 +982,8 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
                 .with("column.mask.hash.SHA-256.with.salt.CzQMA0cB5K",
                         TestHelper.getDBPrefix() + "masked_hashed_column_table.name2," + TestHelper.getDBPrefix() + "masked_hashed_column_table.name3")
                 .with("column.truncate.to.4.chars", TestHelper.getDBPrefix() + "truncated_column_table.name")
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST,
+                        TestHelper.includePrefix("masked_hashed_column_table") + "," + TestHelper.includePrefix("truncated_column_table"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -1022,6 +1031,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
                 .with(IngresConnectorConfig.MSG_KEY_COLUMNS, "(.*).tablea:id,cola")
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -1049,6 +1059,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
         final Configuration config = TestHelper.defaultConfig()
                 .with(IngresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NO_DATA)
                 .with("datatype.propagate.source.type", ".+\\.NUMERIC,.+\\.VARCHAR,.+\\.DECIMAL,.+\\.FLOAT")
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("dt_table"))
                 .build();
 
         start(IngresConnector.class, config);
@@ -1247,6 +1258,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
                 .with(CommonConnectorConfig.SNAPSHOT_MODE_TABLES, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .with(CommonConnectorConfig.SNAPSHOT_QUERY_MODE, CommonConnectorConfig.SnapshotQueryMode.CUSTOM)
                 .with(CommonConnectorConfig.SNAPSHOT_QUERY_MODE_CUSTOM_NAME, CustomTestSnapshot.class.getName())
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         connection.execute("INSERT INTO tableb VALUES (1, '1')");
@@ -1299,6 +1311,7 @@ public class IngresConnectorIT extends AbstractAsyncEngineConnectorTest {
                 .with(IngresConnectorConfig.SNAPSHOT_MODE_CUSTOM_NAME, CustomTestSnapshot.class.getName())
                 .with(CommonConnectorConfig.SNAPSHOT_QUERY_MODE, CommonConnectorConfig.SnapshotQueryMode.CUSTOM)
                 .with(CommonConnectorConfig.SNAPSHOT_QUERY_MODE_CUSTOM_NAME, CustomTestSnapshot.class.getName())
+                .with(IngresConnectorConfig.TABLE_INCLUDE_LIST, TestHelper.includePrefix("tablea") + "," + TestHelper.includePrefix("tableb"))
                 .build();
 
         start(IngresConnector.class, config);

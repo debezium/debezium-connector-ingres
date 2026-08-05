@@ -58,7 +58,7 @@ public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
         start(IngresConnector.class, config);
         assertConnectorIsRunning();
 
-        waitForSnapshotToBeCompleted(TestHelper.TEST_CONNECTOR, testMethodName);
+        waitForSnapshotToBeCompleted(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
     }
 
     protected Builder connectorConfig() {

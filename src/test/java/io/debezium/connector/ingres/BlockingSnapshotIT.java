@@ -25,7 +25,7 @@ import io.debezium.pipeline.AbstractBlockingSnapshotTest;
 import io.debezium.relational.history.SchemaHistory;
 
 @Flaky("DBZ-8114")
-public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest {
+public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest<IngresConnector> {
 
     private IngresConnection connection;
 
@@ -96,7 +96,7 @@ public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest {
 
     @Override
     protected List<String> tableNames() {
-        return List.of(tableName(), TestHelper.TEST_DATABASE + "." + TestHelper.TEST_SCHEMA + ".b");
+        return List.of(tableName(), TestHelper.TEST_SCHEMA + ".b");
     }
 
     @Override

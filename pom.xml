@@ -37,7 +37,7 @@
         <!-- Debezium parent -->
         <version.debezium>${project.version}</version.debezium>
 
-        <version.ingres.cdc>0.0.2</version.ingres.cdc>
+        <version.ingres.cdc>1.0.3</version.ingres.cdc>
 
         <docker.skip>false</docker.skip>
         <docker.showLogs>true</docker.showLogs>
@@ -400,10 +400,11 @@
                     <enableAssertions>true</enableAssertions>
                     <systemPropertyVariables combine.children="append">
                         <!-- Make these available to the tests via system properties -->
-                        <database.hostname>${docker.host.address}</database.hostname>
                         <skipLongRunningTests>${skipLongRunningTests}</skipLongRunningTests>
                     </systemPropertyVariables>
                     <runOrder>${runOrder}</runOrder>
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
                 </configuration>
             </plugin>
         </plugins>
