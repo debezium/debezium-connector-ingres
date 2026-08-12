@@ -38,6 +38,8 @@ import com.ingres.gcf.util.SqlData;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
+import io.debezium.pipeline.monitor.OffsetActivityMonitor;
+import io.debezium.pipeline.monitor.OffsetActivityMonitorService;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaChangeEvent;
@@ -59,6 +61,8 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     private final IngresDatabaseSchema schema;
     private IngresOffsetContext effectiveOffsetContext;
     private final Map<Integer, TableId> idToTableId = new ConcurrentHashMap<>();
+    private final OffsetActivityMonitorService offsetActivityMonitorService;
+    private OffsetActivityMonitor<IngresPartition, IngresOffsetContext> offsetActivityMonitor;
 
     public IngresStreamingChangeEventSource(IngresConnectorConfig connectorConfig,
                                             IngresConnection dataConnection, IngresConnection metadataConnection,
@@ -70,6 +74,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
         this.errorHandler = errorHandler;
         this.clock = clock;
         this.schema = schema;
+        this.offsetActivityMonitorService = OffsetActivityMonitorService.lookup(connectorConfig.getServiceRegistry());
     }
 
     @Override
@@ -189,6 +194,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                 }
 
                 dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
+                offsetActivityMonitorService.pulse(partition, offsetContext);
                 LogRecord streamRecord = engine.get();
                 switch (streamRecord.getType()) {
                     case TRANSACTION:
@@ -224,6 +230,14 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     @Override
     public IngresOffsetContext getOffsetContext() {
         return effectiveOffsetContext;
+    }
+
+    @Override
+    public Optional<OffsetActivityMonitor<IngresPartition, IngresOffsetContext>> getOffsetActivityMonitor() {
+        if (offsetActivityMonitor == null) {
+            offsetActivityMonitor = new IngresOffsetActivityMonitor(connectorConfig.getOffsetActivityMonitorInterval());
+        }
+        return Optional.of(offsetActivityMonitor);
     }
 
     public CDCTransactionEngine.Builder getTransactionEngine(ChangeEventSourceContext context,
