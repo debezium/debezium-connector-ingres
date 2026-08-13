@@ -8,25 +8,21 @@ package io.debezium.connector.ingres;
 import java.time.Duration;
 import java.util.Objects;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.debezium.pipeline.monitor.OffsetActivityMonitor;
+import io.debezium.pipeline.monitor.StaleOffsetsResult;
 
 /**
  * An {@link OffsetActivityMonitor} that tracks state changes to the connector's offsets.
  * <p>
  * The offset change position, the combination of the commit, change, and begin records along
  * with the transaction id, is compared against the value captured when the monitor was last
- * consulted, and when the position has not moved, a warning is logged. The combination is used
- * rather than the commit record alone so that progress within a single large transaction is
- * not reported as stale.
+ * consulted, and when the position has not moved, a stale result is reported. The combination
+ * is used rather than the commit record alone so that progress within a single large
+ * transaction is not reported as stale.
  *
  * @author Chris Cranford
  */
 public class IngresOffsetActivityMonitor implements OffsetActivityMonitor<IngresPartition, IngresOffsetContext> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(IngresOffsetActivityMonitor.class);
 
     private final Duration checkInterval;
 
@@ -37,19 +33,23 @@ public class IngresOffsetActivityMonitor implements OffsetActivityMonitor<Ingres
     }
 
     @Override
-    public void checkForStaleOffsets(IngresPartition partition, IngresOffsetContext offsetContext) {
+    public StaleOffsetsResult checkForStaleOffsets(IngresPartition partition, IngresOffsetContext offsetContext) {
         final TxLogPosition position = offsetContext.getChangePosition();
 
         // Check for stale state
+        StaleOffsetsResult result = StaleOffsetsResult.fresh();
         if (Objects.equals(previousPosition, position)) {
-            LOGGER.warn("Offset position {} has not changed in at least {} milliseconds. " +
-                    "This may indicate the database is idle, there are no changes for the captured tables, " +
-                    "or that the connector is no longer receiving records from the CDC log stream.",
-                    position, checkInterval.toMillis());
+            result = StaleOffsetsResult.stale(
+                    ("Offset position %s has not changed in at least %d milliseconds. " +
+                            "This may indicate the database is idle, there are no changes for the captured tables, " +
+                            "or that the connector is no longer receiving records from the CDC log stream.")
+                            .formatted(position, checkInterval.toMillis()));
         }
 
         // Update tracked stats
         previousPosition = position;
+
+        return result;
     }
 
 }
