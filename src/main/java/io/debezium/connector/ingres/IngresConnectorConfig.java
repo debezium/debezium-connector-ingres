@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.ingres;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import org.apache.kafka.common.config.ConfigDef;
@@ -345,15 +347,44 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
             .withDescription("Name of the table used to determine CDC log positioning.")
             .withDefault(DEFAULT_HEADER_TABLE);
 
+    public static final Field SOURCE_TIMEZONE = Field.create("source.timezone")
+            .withDisplayName("Source database timezone")
+            .withType(ConfigDef.Type.STRING)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED))
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDescription("The timezone of the Ingres server whose CDC log records (begin/commit timestamps) are "
+                    + "read by this connector. The CDC driver returns these timestamps without any timezone "
+                    + "information, so the connector must be told what timezone they were recorded in."
+                    + "Accepts either a zone ID (e.g. 'America/Chicago', 'UTC') or a fixed offset (e.g. '+02:00', '-05:00')."
+                    + "Defaults to the connector JVM's own timezone.")
+            .withValidation(IngresConnectorConfig::isTimeZone)
+            .withDefault(ZoneId.systemDefault().getId());
+
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
             .withDefault(IngresSourceInfoStructMaker.class.getName());
+
+    private static int isTimeZone(Configuration config, Field field, Field.ValidationOutput problems) {
+        String value = config.getString(field);
+        if (value == null) {
+            return 0;
+        }
+        try {
+            ZoneId.of(value);
+        }
+        catch (DateTimeException e) {
+            problems.accept(field, value, "A zone ID (e.g. 'America/Chicago', 'UTC') or a zone offset (e.g. '+02:00') is expected");
+            return 1;
+        }
+        return 0;
+    }
 
     private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
             .name("Ingres")
             .group(Field.Group.CONNECTION, HOSTNAME, PORT, USER, PASSWORD, DATABASE_NAME, QUERY_TIMEOUT_MS)
             .group(Field.Group.CONNECTOR_SNAPSHOT, SNAPSHOT_MODE, SNAPSHOT_ISOLATION_MODE, SNAPSHOT_LOCKING_MODE)
             .group(Field.Group.CONNECTOR, INCREMENTAL_SNAPSHOT_CHUNK_SIZE, SOURCE_INFO_STRUCT_MAKER)
-            .group(Field.Group.CONNECTOR_ADVANCED, CDC_TIMEOUT, CDC_MARKER_TABLE)
+            .group(Field.Group.CONNECTOR_ADVANCED, CDC_TIMEOUT, CDC_MARKER_TABLE, SOURCE_TIMEZONE)
             .excluding(
                     SCHEMA_INCLUDE_LIST,
                     SCHEMA_EXCLUDE_LIST,
@@ -377,6 +408,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
     private final JdbcConfiguration cdcJdbcConfig;
     private final int cdcTimeout;
     private final String cdcMarkerTable;
+    private final ZoneId sourceTimeZone;
 
     private final SnapshotLockingMode snapshotLockingMode;
 
@@ -397,6 +429,7 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
         this.cdcJdbcConfig = JdbcConfiguration.adapt(getJdbcConfig().edit().with(JdbcConfiguration.DATABASE, CDC_DATABASE).build());
         this.cdcTimeout = config.getInteger(CDC_TIMEOUT);
         this.cdcMarkerTable = config.getString(CDC_MARKER_TABLE);
+        this.sourceTimeZone = ZoneId.of(config.getString(SOURCE_TIMEZONE));
     }
 
     public String getDatabaseName() {
@@ -426,6 +459,10 @@ public class IngresConnectorConfig extends HistorizedRelationalDatabaseConnector
 
     public String getMarkerTable() {
         return cdcMarkerTable;
+    }
+
+    public ZoneId getSourceTimeZone() {
+        return sourceTimeZone;
     }
 
     @Override

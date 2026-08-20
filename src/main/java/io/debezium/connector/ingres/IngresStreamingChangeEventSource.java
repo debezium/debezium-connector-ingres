@@ -9,8 +9,6 @@ import static java.lang.Thread.currentThread;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -307,7 +305,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
         Stopwatch stopwatch = Stopwatch.reusable();
         stopwatch.start();
 
-        LocalDateTime beginTs = beginRecord.getTime();
+        Instant beginTs = beginRecord.getTime().atZone(connectorConfig.getSourceTimeZone()).toInstant();
         HeaderRecord beginHeader = beginRecord.getHeader();
         HeaderRecord endHeader = endRecord.getHeader();
         HeaderRecord restartHeader = engine.getLowestHeaderRecord().orElse(endHeader);
@@ -321,7 +319,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     partition,
                     String.valueOf(transactionId),
                     offsetContext,
-                    beginTs.atZone(ZoneId.systemDefault()).toInstant());
+                    beginTs);
         }
 
         LOGGER.info("Received Tx {} Time [{}] Owner [{}] ElapsedT [{}ms]",
@@ -329,7 +327,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
 
         if (RecordType.COMMIT.equals(endRecord.getType())) {
             HeaderRecord commitHeader = endRecord.getHeader();
-            LocalDateTime commitTime = endRecord.unwrap(CommitRecord.class).getTime();
+            Instant commitTime = endRecord.unwrap(CommitRecord.class).getTime().atZone(connectorConfig.getSourceTimeZone()).toInstant();
 
             Map<String, SqlData> before = null;
             Map<String, SqlData> after = null;
@@ -351,7 +349,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                 switch (streamRecord.getType()) {
                     case INSERT:
                         after = streamRecord.unwrap(LoggedDataRecord.class).getAfterImage().asMap();
-                        handleOperation(partition, offsetContext, Operation.CREATE, before, after, tableId.orElseThrow());
+                        handleOperation(partition, offsetContext, Operation.CREATE, before, after, tableId.orElseThrow(), commitTime);
 
                         LOGGER.debug("Received {} ElapsedT [{}ms] Data After [{}]",
                                 streamRecord, stop(stopwatch), after);
@@ -359,14 +357,14 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     case UPDATE:
                         before = streamRecord.unwrap(LoggedDataRecord.class).getBeforeImage().asMap();
                         after = streamRecord.unwrap(LoggedDataRecord.class).getAfterImage().asMap();
-                        handleOperation(partition, offsetContext, Operation.UPDATE, before, after, tableId.orElseThrow());
+                        handleOperation(partition, offsetContext, Operation.UPDATE, before, after, tableId.orElseThrow(), commitTime);
 
                         LOGGER.debug("Received {} ElapsedT [{}ms] Data Before [{}]",
                                 streamRecord, stop(stopwatch), before);
                         break;
                     case DELETE:
                         before = streamRecord.unwrap(LoggedDataRecord.class).getBeforeImage().asMap();
-                        handleOperation(partition, offsetContext, Operation.DELETE, before, after, tableId.orElseThrow());
+                        handleOperation(partition, offsetContext, Operation.DELETE, before, after, tableId.orElseThrow(), commitTime);
 
                         LOGGER.debug("Received {} ElapsedT [{}ms] Data Before [{}]",
                                 streamRecord, stop(stopwatch), before);
@@ -374,7 +372,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     case TRUNCATE:
                         TruncateRecord truncateRecord = streamRecord.unwrap(TruncateRecord.class);
                         tableId = Optional.of(new TableId(this.dbConnection.getRealDatabaseName(), truncateRecord.getOwner(), truncateRecord.getTableName()));
-                        handleOperation(partition, offsetContext, Operation.TRUNCATE, before, after, tableId.orElseThrow());
+                        handleOperation(partition, offsetContext, Operation.TRUNCATE, before, after, tableId.orElseThrow(), commitTime);
 
                         LOGGER.debug(RECEIVED_GENERIC_RECORD, streamRecord, stop(stopwatch));
                         break;
@@ -389,7 +387,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
 
             stopwatch.start();
             updateChangePosition(offsetContext, commitHeader, commitHeader, transactionId, restartHeader);
-            dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, commitTime.atZone(ZoneId.systemDefault()).toInstant());
+            dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext, commitTime);
 
             LOGGER.debug("Received {} Time [{}] Owner [{}] ElapsedT [{}ms]",
                     endRecord, commitTime, beginRecord.getOwner(), stop(stopwatch));
@@ -446,9 +444,9 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     }
 
     private void handleOperation(IngresPartition partition, IngresOffsetContext offsetContext, Operation operation,
-                                 Map<String, SqlData> before, Map<String, SqlData> after, TableId tableId)
+                                 Map<String, SqlData> before, Map<String, SqlData> after, TableId tableId, Instant commitTime)
             throws InterruptedException {
-        offsetContext.event(tableId, clock.currentTime());
+        offsetContext.event(tableId, commitTime);
 
         dispatcher.dispatchDataChangeEvent(partition, tableId,
                 new IngresChangeRecordEmitter(partition, offsetContext, operation,

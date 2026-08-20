@@ -7,6 +7,7 @@ package io.debezium.connector.ingres.util;
 
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.time.ZoneId;
 import java.util.concurrent.TimeUnit;
 
 import io.debezium.config.CommonConnectorConfig;
@@ -65,6 +66,12 @@ public class TestHelper {
         // Set this to give enough delay to debug Debezium events
         setDefaultProperty("debezium.test.records.waittime", "30");
         setDefaultProperty("debezium.test.engine.waittime", "30");
+
+        // The Ingres server's CDC log records begin/commit timestamps with no timezone info, using
+        // the server's own clock. Default to this JVM's own timezone, which is only correct if the
+        // Ingres server happens to run in the same timezone; override with -Dsource.timezone=<zone>
+        // (e.g. America/Los_Angeles) if your server is in a different one.
+        setDefaultProperty("source.timezone", ZoneId.systemDefault().getId());
     }
 
     /**
@@ -166,7 +173,8 @@ public class TestHelper {
                 .withDefault(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
                 .withDefault(IngresConnectorConfig.INCLUDE_SCHEMA_CHANGES, false)
                 .withDefault(IngresConnectorConfig.CDC_TIMEOUT, 3)
-                .withDefault(CommonConnectorConfig.EXECUTOR_SHUTDOWN_TIMEOUT_MS, 30_000);
+                .withDefault(CommonConnectorConfig.EXECUTOR_SHUTDOWN_TIMEOUT_MS, 30_000)
+                .withDefault(IngresConnectorConfig.SOURCE_TIMEZONE, System.getProperty("source.timezone"));
     }
 
     public static IngresConnection adminConnection() {

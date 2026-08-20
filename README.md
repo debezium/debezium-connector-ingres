@@ -50,7 +50,7 @@ Integration tests are not automated and require manual setup and execution again
 
 #### Server-side setup
 
-1. Create or choose two users with security privileges. If pick users that are not 'u1' and 'u2' then change `TestHelper.TEST_SCHEMA` to match
+1. Create or choose two users with security privileges. If you pick users that are not 'u1' and 'u2' then change `TestHelper.TEST_SCHEMA` and/or `TestHelper.TEST_SCHEMA2` to match
 ```bash
 > sql
 CREATE USER u1 WITH PASSWORD='user1', PRIVILEGES = (SECURITY)\g
@@ -77,6 +77,7 @@ CREATE USER u2 WITH PASSWORD='user2', PRIVILEGES = (SECURITY)\g
    - `-Ddatabase.user=<user>` — the user to connect with
    - `-Ddatabase.password=<password>` — the password for the user
    - `-Ddatabase.dbname=<database>` — the database to connect to.
+   - `-Dsource.timezone=<zone>` — the timezone the source server's clock is set to (e.g. `America/Los_Angeles`) if it is not the same timezone as the Debezium JVM
 
    The exceptions are `TEST_DATABASE` / `TEST_SCHEMA` / `TEST_CONNECTOR` in
    `src/test/java/io/debezium/connector/ingres/util/TestHelper.java` — these are compile-time Java
