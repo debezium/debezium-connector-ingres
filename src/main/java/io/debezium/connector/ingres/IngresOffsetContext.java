@@ -58,18 +58,19 @@ public class IngresOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     @Override
     public Map<String, ?> getOffset() {
+        final Map<String, Object> offset = Collect.hashMapOf(
+                SourceInfo.COMMIT_HEADER, sourceInfo.getCommitRecord() == null ? null : sourceInfo.getCommitRecord().toBase64(),
+                SourceInfo.CHANGE_HEADER, sourceInfo.getChangeRecord() == null ? null : sourceInfo.getChangeRecord().toBase64(),
+                SourceInfo.BEGIN_HEADER, sourceInfo.getBeginRecord() == null ? null : sourceInfo.getBeginRecord().toBase64());
         if (getSnapshot().isPresent()) {
-            return Collect.hashMapOf(
-                    AbstractSourceInfo.SNAPSHOT_KEY, getSnapshot().get().toString(),
-                    SNAPSHOT_COMPLETED_KEY, snapshotCompleted,
-                    SourceInfo.COMMIT_HEADER, sourceInfo.getCommitRecord() == null ? null : sourceInfo.getCommitRecord().toBase64());
+            offset.put(AbstractSourceInfo.SNAPSHOT_KEY, getSnapshot().get().toString());
+            offset.put(SNAPSHOT_COMPLETED_KEY, snapshotCompleted);
         }
-        else {
-            return incrementalSnapshotContext.store(transactionContext.store(Collect.hashMapOf(
-                    SourceInfo.COMMIT_HEADER, sourceInfo.getCommitRecord() == null ? null : sourceInfo.getCommitRecord().toBase64(),
-                    SourceInfo.CHANGE_HEADER, sourceInfo.getChangeRecord() == null ? null : sourceInfo.getChangeRecord().toBase64(),
-                    SourceInfo.BEGIN_HEADER, sourceInfo.getBeginRecord() == null ? null : sourceInfo.getBeginRecord().toBase64())));
-        }
+        // Incremental snapshot progress must survive regardless of whether this particular offset
+        // also happens to carry snapshot=INCREMENTAL/snapshot_completed (e.g. a live-streaming commit
+        // emitted while an incremental snapshot is still in progress on another table) - otherwise a
+        // restart loses track of any not-yet-processed chunks/tables.
+        return incrementalSnapshotContext.store(transactionContext.store(offset));
     }
 
     @Override

@@ -75,8 +75,11 @@ public class IngresChangeRecordEmitter extends RelationalChangeRecordEmitter<Ing
                 : tableSchema.valueSchema().fields().stream()
                         .map(Field::name)
                         .map(data::get)
-                        // SqlNull does not work with calls to getObject(), so we need to handle it separately
-                        .map(irt -> propagate(irt instanceof SqlNull ? () -> null : irt::getObject)).toArray();
+                        // SqlNull does not work with getObject(); IngresDate uses get() directly
+                        .map(irt -> propagate(irt instanceof SqlNull ? () -> null
+                                : irt instanceof com.ingres.gcf.util.IngresDate ? ((com.ingres.gcf.util.IngresDate) irt)::get
+                                        : irt::getObject))
+                        .toArray();
     }
 
     private static <X> X propagate(Callable<X> callable) {

@@ -6,6 +6,8 @@
 package io.debezium.connector.ingres;
 
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +21,8 @@ import org.apache.kafka.connect.data.Struct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.DebeziumException;
+import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Column;
 import io.debezium.relational.DefaultValueConverter;
 import io.debezium.relational.ValueConverter;
@@ -44,6 +48,37 @@ public class IngresDefaultValueConverter implements DefaultValueConverter {
     @Override
     public Optional<Object> parseDefaultValue(Column column, String defaultValue) {
         LOGGER.info("Parsing default value for column '{}' with expression '{}'", column.name(), defaultValue);
+        if (defaultValue != null) {
+            final String trimmed = defaultValue.trim();
+            final boolean isLiteral = trimmed.startsWith("'") && trimmed.endsWith("'");
+            if (!isLiteral && trimmed.toLowerCase().startsWith("next value for")) {
+                LOGGER.debug("Skipping sequence expression default value '{}' for column '{}'.", defaultValue, column.name());
+                return Optional.empty();
+            }
+        }
+        // ANSIDATE is an ISO date (YYYY-MM-DD). Route it through Date.valueOf() directly rather
+        // than the JDBC DATE path, which queries "SELECT DATE '...'" — an ingresdate in Ingres —
+        // and gets back a String that the downstream INT32 schema cannot convert.
+        if ("ANSIDATE".equalsIgnoreCase(column.typeName())) {
+            try {
+                if (defaultValue == null || "NULL".equalsIgnoreCase(defaultValue.trim())) {
+                    return Optional.empty();
+                }
+                final String trimmed = defaultValue.trim();
+                // Temporal function defaults cannot be evaluated statically; use epoch for non-optional columns.
+                if ("CURRENT_DATE".equalsIgnoreCase(trimmed) || "NOW".equalsIgnoreCase(trimmed)) {
+                    Date fallback = column.isOptional() ? null : Date.valueOf("1970-01-01");
+                    return Optional.ofNullable(convertDefaultValue(fallback, column));
+                }
+                Date parsed = Date.valueOf(unquote(trimmed));
+                return Optional.ofNullable(convertDefaultValue(parsed, column));
+            }
+            catch (Exception e) {
+                LOGGER.warn("Cannot parse ANSIDATE default value '{}' for column '{}'.", defaultValue, column.name(), e);
+                return Optional.empty();
+            }
+        }
+
         final int dataType = column.jdbcType();
         final DefaultValueMapper mapper = defaultValueMappers.get(dataType);
         if (mapper == null) {
@@ -152,7 +187,40 @@ public class IngresDefaultValueConverter implements DefaultValueConverter {
 
     private static DefaultValueMapper castTemporalFunctionCall(IngresConnection connection, int jdbcType) {
         return (column, value) -> {
-            return value;
+            switch (value.trim().toUpperCase()) {
+                case "NOW", "CURRENT_DATE" -> {
+                    // If the column is optional, the default value is ignored
+                    return column.isOptional() ? null : Date.valueOf("1970-01-01");
+                }
+                case "CURRENT", "CURRENT_TIME", "CURRENT_TIMESTAMP", "LOCAL_TIMESTAMP", "LOCAL_TIME" -> {
+                    return column.isOptional() ? null : Timestamp.valueOf("1970-01-01 00:00:00");
+                }
+            }
+            final String quotedValue = value.startsWith("'") && value.endsWith("'") ? value : "'" + value + "'";
+            return switch (jdbcType) {
+                case Types.DATE ->
+                    JdbcConnection.querySingleValue(
+                            connection.connection(),
+                            "SELECT DATE " + quotedValue,
+                            st -> {
+                            },
+                            rs -> rs.getDate(1));
+                case Types.TIME ->
+                    JdbcConnection.querySingleValue(
+                            connection.connection(),
+                            "SELECT TIME " + quotedValue,
+                            st -> {
+                            },
+                            rs -> rs.getTime(1));
+                case Types.TIMESTAMP ->
+                    JdbcConnection.querySingleValue(
+                            connection.connection(),
+                            "SELECT TIMESTAMP " + quotedValue,
+                            st -> {
+                            },
+                            rs -> rs.getTimestamp(1));
+                default -> throw new DebeziumException("Unexpected JDBC type '" + jdbcType + "' for default value resolution: " + value);
+            };
         };
     }
 

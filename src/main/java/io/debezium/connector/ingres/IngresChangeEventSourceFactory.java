@@ -27,7 +27,6 @@ public class IngresChangeEventSourceFactory implements ChangeEventSourceFactory<
 
     private final IngresConnectorConfig configuration;
     private final MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory;
-    private final MainConnectionProvidingConnectionFactory<IngresConnection> cdcConnectionFactory;
     private final ErrorHandler errorHandler;
     private final EventDispatcher<IngresPartition, TableId> dispatcher;
     private final Clock clock;
@@ -36,12 +35,10 @@ public class IngresChangeEventSourceFactory implements ChangeEventSourceFactory<
 
     public IngresChangeEventSourceFactory(IngresConnectorConfig configuration,
                                           MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory,
-                                          MainConnectionProvidingConnectionFactory<IngresConnection> cdcConnectionFactory,
                                           ErrorHandler errorHandler, EventDispatcher<IngresPartition, TableId> dispatcher,
                                           Clock clock, IngresDatabaseSchema schema, SnapshotterService snapshotterService) {
         this.configuration = configuration;
         this.connectionFactory = connectionFactory;
-        this.cdcConnectionFactory = cdcConnectionFactory;
         this.errorHandler = errorHandler;
         this.dispatcher = dispatcher;
         this.clock = clock;
@@ -67,7 +64,6 @@ public class IngresChangeEventSourceFactory implements ChangeEventSourceFactory<
     public StreamingChangeEventSource<IngresPartition, IngresOffsetContext> getStreamingChangeEventSource() {
         return new IngresStreamingChangeEventSource(
                 configuration,
-                cdcConnectionFactory.mainConnection(),
                 connectionFactory.mainConnection(),
                 dispatcher,
                 errorHandler,

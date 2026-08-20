@@ -36,6 +36,7 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.Partition;
 import io.debezium.relational.Attribute;
 import io.debezium.relational.Column;
+import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
 import io.debezium.relational.Tables.ColumnNameFilter;
@@ -52,10 +53,9 @@ public class IngresConnection extends JdbcConnection {
     private final static Logger LOGGER = LoggerFactory.getLogger(IngresConnection.class);
     private static final String GET_DATABASE_NAME = "SELECT DBMSINFO('database') AS dbname";
 
-    // FIXME Need to get the current timestamp
     private static final String GET_CURRENT_TIMESTAMP = "SELECT CURRENT_TIMESTAMP";
 
-    private static final String QUOTED_CHARACTER = ""; // TODO: Unless DELIMIDENT is set, column names cannot be quoted
+    private static final String QUOTED_CHARACTER = "";
 
     // jdbc:ingres://usau-ninturi-01.actian.com:ii7/imadb;encrypt=on;user=the-user;password=the-password
     private static final String URL_PATTERN = "jdbc:ingres://${"
@@ -218,17 +218,12 @@ public class IngresConnection extends JdbcConnection {
 
     @Override
     public Optional<Boolean> nullsSortLast() {
-        return Optional.of(false);
+        return Optional.of(true);
     }
 
     @Override
     public String quotedTableIdString(TableId tableId) {
         StringBuilder builder = new StringBuilder();
-
-        String catalogName = tableId.catalog();
-        if (!Strings.isNullOrBlank(catalogName)) {
-            builder.append(catalogName).append(':');
-        }
 
         String schemaName = tableId.schema();
         if (!Strings.isNullOrBlank(schemaName)) {
@@ -295,4 +290,52 @@ public class IngresConnection extends JdbcConnection {
         };
     }
 
+    @Override
+    public String buildSelectWithRowLimits(TableId tableId, int limit, String projection,
+                                           Optional<String> condition, Optional<String> additionalCondition,
+                                           String orderBy, Optional<String> tableAlias) {
+        // Ingres uses FIRST n syntax instead of LIMIT n
+        StringBuilder sb = new StringBuilder("SELECT FIRST ");
+        sb.append(limit);
+        sb.append(" ");
+        sb.append(projection);
+        sb.append(" FROM ");
+        sb.append(quotedTableIdString(tableId));
+
+        tableAlias.ifPresent(alias -> sb.append(" ").append(alias));
+
+        if (condition.isPresent()) {
+            sb.append(" WHERE ");
+            sb.append(condition.get());
+            additionalCondition.ifPresent(ac -> {
+                sb.append(" AND ");
+                sb.append(ac);
+            });
+        }
+        else {
+            additionalCondition.ifPresent(ac -> {
+                sb.append(" WHERE ");
+                sb.append(ac);
+            });
+        }
+
+        sb.append(" ORDER BY ");
+        sb.append(orderBy);
+
+        return sb.toString();
+    }
+
+    @Override
+    public Object getColumnValue(ResultSet rs, int columnIndex, Column column, Table table) throws SQLException {
+        if ("ingresdate".equalsIgnoreCase(column.typeName())) {
+            return rs.getString(columnIndex);
+        }
+        if ("long varchar".equalsIgnoreCase(column.typeName())) {
+            return rs.getString(columnIndex);
+        }
+        if ("long byte".equalsIgnoreCase(column.typeName())) {
+            return rs.getBytes(columnIndex);
+        }
+        return super.getColumnValue(rs, columnIndex, column, table);
+    }
 }

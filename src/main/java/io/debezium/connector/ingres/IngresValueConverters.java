@@ -8,6 +8,7 @@ package io.debezium.connector.ingres;
 import java.io.BufferedReader;
 import java.math.BigDecimal;
 import java.sql.Clob;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.ZoneOffset;
@@ -58,6 +59,10 @@ public class IngresValueConverters extends JdbcValueConverters {
                 column.length(),
                 column.scale());
 
+        if ("ingresdate".equalsIgnoreCase(column.typeName())) {
+            return SchemaBuilder.string();
+        }
+
         switch (column.jdbcType()) {
             case Types.NUMERIC:
             case Types.DECIMAL:
@@ -93,6 +98,22 @@ public class IngresValueConverters extends JdbcValueConverters {
 
     @Override
     public ValueConverter converter(Column column, Field fieldDefn) {
+        if ("ingresdate".equalsIgnoreCase(column.typeName())) {
+            return data -> convertString(column, fieldDefn, data);
+        }
+        else if ("ANSIDATE".equalsIgnoreCase(column.typeName())) {
+            return data -> {
+                if (data instanceof String) {
+                    try {
+                        data = Date.valueOf((String) data);
+                    }
+                    catch (IllegalArgumentException e) {
+                        return handleUnknownData(column, fieldDefn, data);
+                    }
+                }
+                return convertDate(column, fieldDefn, data);
+            };
+        }
         switch (column.jdbcType()) {
             case Types.NUMERIC:
             case Types.DECIMAL:

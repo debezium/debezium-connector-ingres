@@ -36,6 +36,7 @@ public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
         insertIntTypes();
         insertTimeTypes();
         insertClobTypes();
+        insertLongTypes();
     }
 
     @BeforeEach
@@ -83,6 +84,8 @@ public class StreamingDatatypesIT extends AbstractIngresDatatypesTest {
                 return TestHelper.includePrefix("type_time");
             case "clobTypes":
                 return TestHelper.includePrefix("type_clob");
+            case "longTypes":
+                return TestHelper.includePrefix("type_long");
             default:
                 throw new IllegalArgumentException("Unexpected test method: " + testMethodName);
         }

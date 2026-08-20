@@ -8,9 +8,12 @@ package io.debezium.connector.ingres;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.sql.Clob;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -35,6 +38,7 @@ import io.debezium.jdbc.JdbcValueConverters.DecimalMode;
 import io.debezium.jdbc.TemporalPrecisionMode;
 import io.debezium.time.Date;
 import io.debezium.time.MicroTime;
+import io.debezium.time.MicroTimestamp;
 import io.debezium.time.Time;
 import io.debezium.util.Testing;
 
@@ -79,7 +83,8 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             "  id int not null primary key with default next value for dbzsequence, " +
             "  val_date date, " +
             "  val_time TIME(5) WITHOUT TIME ZONE, " +
-            "  val_ansidate ANSIDATE " +
+            "  val_ansidate ANSIDATE, " +
+            "  val_timestamp TIMESTAMP WITHOUT TIME ZONE " +
             ")";
 
     private static final String DDL_CLOB = "create table type_clob (" +
@@ -87,6 +92,16 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             "  val_clob_inline clob, " +
             "  val_clob_short clob, " +
             "  val_clob_long clob" +
+            ")";
+
+    private static final String DDL_LONG = "create table type_long (" +
+            "  id int not null primary key with default next value for dbzsequence, " +
+            "  val_long_varchar_inline long varchar, " +
+            "  val_long_varchar_short long varchar, " +
+            "  val_long_varchar_long long varchar, " +
+            "  val_long_byte_inline long byte(8000), " +
+            "  val_long_byte_short long byte(8000), " +
+            "  val_long_byte_long long byte(8000)" +
             ")";
 
     private static final List<SchemaAndValueField> EXPECTED_STRING = Arrays.asList(
@@ -135,7 +150,9 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             new SchemaAndValueField("val_time", Time.builder().optional().build(),
                     LocalTime.of(12, 34, 56).toSecondOfDay() * 1_000),
             new SchemaAndValueField("val_ansidate", Date.builder().optional().build(),
-                    (int) LocalDate.of(2024, 3, 27).toEpochDay()));
+                    (int) LocalDate.of(2024, 3, 27).toEpochDay()),
+            new SchemaAndValueField("val_timestamp", MicroTimestamp.builder().optional().build(),
+                    LocalDateTime.of(2024, 3, 27, 12, 34, 56).toEpochSecond(ZoneOffset.UTC) * 1_000_000L + 123456L));
 
     private static final List<SchemaAndValueField> EXPECTED_TIME_AS_ADAPTIVE = Arrays.asList(
             new SchemaAndValueField("val_date", Date.builder().optional().build(),
@@ -143,7 +160,9 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             new SchemaAndValueField("val_time", MicroTime.builder().optional().build(),
                     LocalTime.of(12, 34, 56).toSecondOfDay() * 1_000_000L),
             new SchemaAndValueField("val_ansidate", Date.builder().optional().build(),
-                    (int) LocalDate.of(2024, 3, 27).toEpochDay()));
+                    (int) LocalDate.of(2024, 3, 27).toEpochDay()),
+            new SchemaAndValueField("val_timestamp", MicroTimestamp.builder().optional().build(),
+                    LocalDateTime.of(2024, 3, 27, 12, 34, 56).toEpochSecond(ZoneOffset.UTC) * 1_000_000L + 123456L));
 
     private static final List<SchemaAndValueField> EXPECTED_TIME_AS_CONNECT = Arrays.asList(
             new SchemaAndValueField("val_date", org.apache.kafka.connect.data.Date.builder().optional().build(),
@@ -151,10 +170,12 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             new SchemaAndValueField("val_time", org.apache.kafka.connect.data.Time.builder().optional().build(),
                     java.util.Date.from(LocalTime.of(12, 34, 56).atDate(LocalDate.EPOCH).atOffset(ZoneOffset.UTC).toInstant())),
             new SchemaAndValueField("val_ansidate", org.apache.kafka.connect.data.Date.builder().optional().build(),
-                    java.util.Date.from(LocalDate.of(2024, 3, 27).atStartOfDay().atOffset(ZoneOffset.UTC).toInstant())));
+                    java.util.Date.from(LocalDate.of(2024, 3, 27).atStartOfDay().atOffset(ZoneOffset.UTC).toInstant())),
+            new SchemaAndValueField("val_timestamp", org.apache.kafka.connect.data.Timestamp.builder().optional().build(),
+                    java.util.Date.from(LocalDateTime.of(2024, 3, 27, 12, 34, 56, 123_000_000).atOffset(ZoneOffset.UTC).toInstant())));
 
     private static final String CLOB_TXT = "TestClob123";
-    private static final String CLOB_JSON = Files.readResourceAsString("data/test_lob_data.json");
+    private static final String CLOB_JSON = Testing.Files.readResourceAsString("data/test_lob_data.json");
 
     private static final List<SchemaAndValueField> EXPECTED_CLOB = Arrays.asList(
             new SchemaAndValueField("val_clob_inline", Schema.OPTIONAL_STRING_SCHEMA, CLOB_TXT),
@@ -168,12 +189,36 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             new SchemaAndValueField("val_clob_short", Schema.OPTIONAL_STRING_SCHEMA, part(CLOB_JSON, 1, 512)),
             new SchemaAndValueField("val_clob_long", Schema.OPTIONAL_STRING_SCHEMA, part(CLOB_JSON, 1, 5000)));
 
+    private static final String LONG_VARCHAR_TXT = "TestLongVarchar123";
+    private static final String LONG_BYTE_TXT = "TestLongByte123";
+
+    private static final List<SchemaAndValueField> EXPECTED_LONG = Arrays.asList(
+            new SchemaAndValueField("val_long_varchar_inline", Schema.OPTIONAL_STRING_SCHEMA, LONG_VARCHAR_TXT),
+            new SchemaAndValueField("val_long_varchar_short", Schema.OPTIONAL_STRING_SCHEMA, part(CLOB_JSON, 0, 512)),
+            new SchemaAndValueField("val_long_varchar_long", Schema.OPTIONAL_STRING_SCHEMA, part(CLOB_JSON, 0, 5000)),
+            new SchemaAndValueField("val_long_byte_inline", Schema.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap(partBytes(LONG_BYTE_TXT, 0, LONG_BYTE_TXT.length()))),
+            new SchemaAndValueField("val_long_byte_short", Schema.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap(partBytes(CLOB_JSON, 0, 512))),
+            new SchemaAndValueField("val_long_byte_long", Schema.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap(partBytes(CLOB_JSON, 0, 5000))));
+
+    public static final String LONG_VARCHAR_TXT_UPDATE = "TestLongVarchar123Update";
+    public static final String LONG_BYTE_TXT_UPDATE = "TestLongByte123Update";
+
+    private static final List<SchemaAndValueField> EXPECTED_LONG_UPDATE = Arrays.asList(
+            new SchemaAndValueField("val_long_varchar_inline", Schema.OPTIONAL_STRING_SCHEMA, LONG_VARCHAR_TXT_UPDATE),
+            new SchemaAndValueField("val_long_varchar_short", Schema.OPTIONAL_STRING_SCHEMA, part(CLOB_JSON, 1, 512)),
+            new SchemaAndValueField("val_long_varchar_long", Schema.OPTIONAL_STRING_SCHEMA, part(CLOB_JSON, 1, 5000)),
+            new SchemaAndValueField("val_long_byte_inline",
+                    Schema.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap(partBytes(LONG_BYTE_TXT_UPDATE, 0, LONG_BYTE_TXT_UPDATE.length()))),
+            new SchemaAndValueField("val_long_byte_short", Schema.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap(partBytes(CLOB_JSON, 1, 512))),
+            new SchemaAndValueField("val_long_byte_long", Schema.OPTIONAL_BYTES_SCHEMA, ByteBuffer.wrap(partBytes(CLOB_JSON, 1, 5000))));
+
     private static final String[] ALL_TABLES = {
             "type_string",
             "type_fp",
             "type_int",
             "type_time",
-            "type_clob"
+            "type_clob",
+            "type_long"
     };
 
     private static final String[] ALL_DDLS = {
@@ -183,6 +228,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
             DDL_INT,
             DDL_TIME,
             DDL_CLOB,
+            DDL_LONG,
     };
 
     private static IngresConnection connection;
@@ -205,8 +251,6 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
     protected static void createTables() throws SQLException {
         try {
             dropTables();
-            connection.execute("drop sequence dbzsequence");
-
         }
         catch (SQLException e) {
             // ignore
@@ -218,6 +262,7 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
         for (String table : ALL_TABLES) {
             TestHelper.dropTable(connection, table);
         }
+        connection.execute("DROP SEQUENCE IF EXISTS dbzsequence");
     }
 
     protected List<String> getAllTables() {
@@ -574,55 +619,98 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
         }
     }
 
+    @Test
+    public void longTypes() throws Exception {
+        int expectedRecordCount = 0;
+
+        if (insertRecordsDuringTest()) {
+            waitForStreamingRunning(TestHelper.TEST_CONNECTOR, TestHelper.TEST_DATABASE);
+            insertLongTypes();
+        }
+        waitForAvailableRecords();
+
+        expectedRecordCount++;
+
+        SourceRecords records = consumeRecordsByTopic(expectedRecordCount);
+
+        List<SourceRecord> testTableRecords = records.recordsForTopic(TestHelper.topicName("type_long"));
+        assertThat(testTableRecords).hasSize(expectedRecordCount);
+        SourceRecord record = testTableRecords.get(0);
+
+        VerifyRecord.isValid(record);
+
+        // insert
+        if (insertRecordsDuringTest()) {
+            VerifyRecord.isValidInsert(record, true);
+        }
+        else {
+            VerifyRecord.isValidRead(record);
+        }
+
+        Struct after = (Struct) ((Struct) record.value()).get("after");
+        assertRecord(after, EXPECTED_LONG);
+
+        if (insertRecordsDuringTest()) {
+            // Update long types
+            updateLongTypes();
+
+            records = consumeRecordsByTopic(1);
+            testTableRecords = records.recordsForTopic(TestHelper.topicName("type_long"));
+            assertThat(testTableRecords).hasSize(1);
+            record = testTableRecords.get(0);
+
+            VerifyRecord.isValid(record);
+            VerifyRecord.isValidUpdate(record, true);
+
+            after = (Struct) ((Struct) record.value()).get("after");
+            assertRecord(after, EXPECTED_LONG_UPDATE);
+        }
+    }
+
     protected static void insertStringTypes() throws SQLException {
-        connection.execute("INSERT INTO type_string VALUES (0, 'vc', 'nvc', 'lvc', 'c', 'nc')");
+        connection.execute("INSERT INTO type_string VALUES (dbzsequence.NEXTVAL, 'vc', 'nvc', 'lvc', 'c', 'nc')");
     }
 
     protected static void insertFpTypes() throws SQLException {
-        connection.execute("INSERT INTO type_fp VALUES (0, 1.1, 2.22, 3.333, 1234.567891, 77.323, 77.323)");
+        connection.execute("INSERT INTO type_fp VALUES (dbzsequence.NEXTVAL, 1.1, 2.22, 3.333, 1234.567891, 77.323, 77.323)");
     }
 
     protected static void insertIntTypes() throws SQLException {
         connection.execute(
-                "INSERT INTO type_int VALUES (0, 1, 22, 333, 4444, 55555, 9999999999, 9999999999)");
+                "INSERT INTO type_int VALUES (dbzsequence.NEXTVAL, 1, 22, 333, 4444, 55555, 9999999999, 9999999999)");
     }
 
     protected static void insertTimeTypes() throws SQLException {
         connection.execute("INSERT INTO type_time VALUES ("
-                + "0"
+                + "dbzsequence.NEXTVAL"
                 + ", '2024-03-27'"
                 + ", '12:34:56'"
                 + ", '2024-03-27'"
+                + ", '2024-03-27 12:34:56.123456'"
                 + ")");
     }
 
     protected static void insertClobTypes() throws SQLException {
-        // Clob clob1 = connection.connection().createClob();
-        // clob1.setString(0, part(CLOB_JSON, 0, 512));
-        //
-        // Clob clob2 = connection.connection().createClob();
-        // clob2.setString(0, part(CLOB_JSON, 0, 5000));
-
-        // FIXME: Driver issue with clob
-        connection.prepareUpdate("INSERT INTO type_clob VALUES (0, ?, ?, ?)", ps -> {
+        connection.prepareUpdate("INSERT INTO type_clob VALUES (dbzsequence.NEXTVAL, ?, ?, ?)", ps -> {
             ps.setString(1, CLOB_TXT);
             ps.setString(2, part(CLOB_JSON, 0, 512));
-            ps.setString(3, part(CLOB_JSON, 0, 512));
-            // ps.setClob(2, clob1);
-            // ps.setClob(3, clob2);
+            ps.setString(3, part(CLOB_JSON, 0, 5000));
         });
         connection.commit();
     }
 
     protected static void updateClobTypes() throws Exception {
         Clob clob1 = connection.connection().createClob();
-        clob1.setString(0, part(CLOB_JSON, 1, 512));
+        clob1.setString(1, part(CLOB_JSON, 1, 512));
 
         Clob clob2 = connection.connection().createClob();
-        clob2.setString(0, part(CLOB_JSON, 1, 5000));
+        clob2.setString(1, part(CLOB_JSON, 1, 5000));
+
+        int id = connection.queryAndMap("SELECT MAX(ID) FROM type_clob",
+                connection.singleResultMapper(rs -> rs.getInt(1), "Could not retrieve id of the row to update"));
 
         connection.prepareUpdate("UPDATE type_clob SET VAL_CLOB_INLINE=?, VAL_CLOB_SHORT=?, VAL_CLOB_LONG=?" +
-                " WHERE ID = 1", ps -> {
+                " WHERE ID = " + id, ps -> {
                     ps.setString(1, CLOB_TXT_UPDATE);
                     ps.setClob(2, clob1);
                     ps.setClob(3, clob2);
@@ -630,8 +718,41 @@ public abstract class AbstractIngresDatatypesTest extends AbstractAsyncEngineCon
         connection.commit();
     }
 
+    protected static void insertLongTypes() throws SQLException {
+        connection.prepareUpdate("INSERT INTO type_long VALUES (dbzsequence.NEXTVAL, ?, ?, ?, ?, ?, ?)", ps -> {
+            ps.setString(1, LONG_VARCHAR_TXT);
+            ps.setString(2, part(CLOB_JSON, 0, 512));
+            ps.setString(3, part(CLOB_JSON, 0, 5000));
+            ps.setBytes(4, partBytes(LONG_BYTE_TXT, 0, LONG_BYTE_TXT.length()));
+            ps.setBytes(5, partBytes(CLOB_JSON, 0, 512));
+            ps.setBytes(6, partBytes(CLOB_JSON, 0, 5000));
+        });
+        connection.commit();
+    }
+
+    protected static void updateLongTypes() throws Exception {
+        int id = connection.queryAndMap("SELECT MAX(ID) FROM type_long",
+                connection.singleResultMapper(rs -> rs.getInt(1), "Could not retrieve id of the row to update"));
+
+        connection.prepareUpdate("UPDATE type_long SET VAL_LONG_VARCHAR_INLINE=?, VAL_LONG_VARCHAR_SHORT=?, VAL_LONG_VARCHAR_LONG=?, " +
+                "VAL_LONG_BYTE_INLINE=?, VAL_LONG_BYTE_SHORT=?, VAL_LONG_BYTE_LONG=?" +
+                " WHERE ID = " + id, ps -> {
+                    ps.setString(1, LONG_VARCHAR_TXT_UPDATE);
+                    ps.setString(2, part(CLOB_JSON, 1, 512));
+                    ps.setString(3, part(CLOB_JSON, 1, 5000));
+                    ps.setBytes(4, partBytes(LONG_BYTE_TXT_UPDATE, 0, LONG_BYTE_TXT_UPDATE.length()));
+                    ps.setBytes(5, partBytes(CLOB_JSON, 1, 512));
+                    ps.setBytes(6, partBytes(CLOB_JSON, 1, 5000));
+                });
+        connection.commit();
+    }
+
     private static String part(String text, int start, int length) {
         return text == null ? "" : text.substring(start, Math.min(length, text.length()));
+    }
+
+    private static byte[] partBytes(String text, int start, int length) {
+        return part(text, start, length).getBytes(StandardCharsets.UTF_8);
     }
 
     private void assertRecord(Struct record, List<SchemaAndValueField> expected) {

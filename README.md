@@ -50,10 +50,11 @@ Integration tests are not automated and require manual setup and execution again
 
 #### Server-side setup
 
-1. Create or choose a user with security priveldges. If you use a user that is not 'u1' then change `TestHelper.TEST_SCHEMA` to match
+1. Create or choose two users with security privileges. If pick users that are not 'u1' and 'u2' then change `TestHelper.TEST_SCHEMA` to match
 ```bash
 > sql
 CREATE USER u1 WITH PASSWORD='user1', PRIVILEGES = (SECURITY)\g
+CREATE USER u2 WITH PASSWORD='user2', PRIVILEGES = (SECURITY)\g
 ```
 2. Create or choose a database to test with. By default dbz is the name of the database coded into the tests. If you change this, then change `TestHelper.TEST_DATABASE` to match
 ```bash

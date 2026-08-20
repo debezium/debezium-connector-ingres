@@ -87,8 +87,6 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
 
         MainConnectionProvidingConnectionFactory<IngresConnection> connectionFactory = new DefaultMainConnectionProvidingConnectionFactory<>(
                 () -> new IngresConnection(connectorConfig.getJdbcConfig()));
-        MainConnectionProvidingConnectionFactory<IngresConnection> cdcConnectionFactory = new DefaultMainConnectionProvidingConnectionFactory<>(
-                () -> new IngresConnection(connectorConfig.getCdcJdbcConfig()));
         dataConnection = connectionFactory.mainConnection();
         try {
             dataConnection.setAutoCommit(false);
@@ -191,7 +189,7 @@ public class IngresConnectorTask extends BaseSourceTask<IngresPartition, IngresO
                 errorHandler,
                 IngresConnector.class,
                 connectorConfig,
-                new IngresChangeEventSourceFactory(connectorConfig, connectionFactory, cdcConnectionFactory, errorHandler, dispatcher, clock, schema,
+                new IngresChangeEventSourceFactory(connectorConfig, connectionFactory, errorHandler, dispatcher, clock, schema,
                         snapshotterService),
                 new DefaultChangeEventSourceMetricsFactory<>(),
                 dispatcher, schema,

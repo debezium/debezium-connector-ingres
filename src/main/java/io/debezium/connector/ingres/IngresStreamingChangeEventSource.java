@@ -65,16 +65,37 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     private OffsetActivityMonitor<IngresPartition, IngresOffsetContext> offsetActivityMonitor;
 
     public IngresStreamingChangeEventSource(IngresConnectorConfig connectorConfig,
-                                            IngresConnection dataConnection, IngresConnection metadataConnection,
+                                            IngresConnection dataConnection,
                                             EventDispatcher<IngresPartition, TableId> dispatcher, ErrorHandler errorHandler,
                                             Clock clock, IngresDatabaseSchema schema) {
         this.connectorConfig = connectorConfig;
-        this.dbConnection = metadataConnection;
+        this.dbConnection = dataConnection;
         this.dispatcher = dispatcher;
         this.errorHandler = errorHandler;
         this.clock = clock;
         this.schema = schema;
         this.offsetActivityMonitorService = OffsetActivityMonitorService.lookup(connectorConfig.getServiceRegistry());
+    }
+
+    @Override
+    public void close() {
+        try {
+            if (dbConnection != null) {
+                if (dbConnection.isConnected()) {
+                    try {
+                        dbConnection.rollback();
+                    }
+                    catch (SQLException e) {
+                        // ignore
+                    }
+                }
+                dbConnection.close();
+            }
+        }
+        catch (SQLException e) {
+            LOGGER.error("Caught SQLException on connection close", e);
+            errorHandler.setProducerThrowable(e);
+        }
     }
 
     @Override
@@ -99,8 +120,6 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
     @Override
     public void execute(ChangeEventSourceContext context, IngresPartition partition, IngresOffsetContext offsetContext)
             throws InterruptedException {
-
-        LOGGER.info("Starting Ingres CDC streaming tableIDs: {}", schema.tableIds());
         // Need to refresh schema before CDCEngine is started, to capture columns added in off-line schema evolution
         schema.tableIds().stream().map(TableId::schema).distinct().forEach(schemaName -> {
             try {
@@ -110,7 +129,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                         schemaName,
                         schema.getTableFilter(),
                         null,
-                        true);
+                        false);
             }
             catch (SQLException e) {
                 LOGGER.error("Caught SQLException", e);
@@ -256,7 +275,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                 .startPosition(beginRecord);
 
         schema.tableIds().forEach(tid -> {
-            LOGGER.info("Table ID: {}", tid);
+            LOGGER.debug("Table ID: {}", tid);
             CDCPublication p = new CDCPublication();
             p.name(tid.identifier())
                     .table(tid.table())
@@ -305,7 +324,7 @@ public class IngresStreamingChangeEventSource implements StreamingChangeEventSou
                     beginTs.atZone(ZoneId.systemDefault()).toInstant());
         }
 
-        LOGGER.info("Received {} Time [{}] Owner [{}] ElapsedT [{}ms]",
+        LOGGER.info("Received Tx {} Time [{}] Owner [{}] ElapsedT [{}ms]",
                 beginRecord, beginTs, beginRecord.getOwner(), stop(stopwatch));
 
         if (RecordType.COMMIT.equals(endRecord.getType())) {

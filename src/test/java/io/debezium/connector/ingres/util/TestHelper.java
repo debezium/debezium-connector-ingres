@@ -24,6 +24,13 @@ public class TestHelper {
     public static final String TEST_DATABASE = "dbz";
     public static final String TEST_CONNECTOR = "ingres_server";
     public static final String TEST_SCHEMA = "u1";
+
+    // Secondary user/schema for tests that need tables owned by more than one user, e.g. reproducing
+    // mixed-owner `table.include.list` bugs. Created per README "Server-side setup" alongside u1.
+    public static final String TEST_SCHEMA2 = "u2";
+    public static final String TEST_USER2 = "u2";
+    public static final String TEST_PASSWORD2 = "user2";
+
     public static final Path SCHEMA_HISTORY_PATH = Testing.Files.createTestingPath("file-schema-history.txt").toAbsolutePath();
 
     /**
@@ -75,7 +82,15 @@ public class TestHelper {
     }
 
     public static String getDBPrefix() {
-        return TEST_DATABASE + "." + TEST_SCHEMA + ".";
+        return getDBPrefix(TEST_SCHEMA);
+    }
+
+    /**
+     * Same as {@link #getDBPrefix()} but for a schema/owner other than {@link #TEST_SCHEMA}, e.g.
+     * {@link #TEST_SCHEMA2} for tests that need tables spanning more than one owner.
+     */
+    public static String getDBPrefix(String schema) {
+        return TEST_DATABASE + "." + schema + ".";
     }
 
     public static String getSchemaPrefix() {
@@ -87,12 +102,26 @@ public class TestHelper {
     }
 
     /**
+     * Same as {@link #topicName(String)} but for a schema/owner other than {@link #TEST_SCHEMA}.
+     */
+    public static String topicName(String schema, String tableName) {
+        return getDBPrefix(schema) + tableName;
+    }
+
+    /**
      * How to define the prefix database/schema/table name for including tables for the connector
      * @param tableName
      * @return String full table name with database and schema
      */
     public static String includePrefix(String tableName) {
         return getDBPrefix() + tableName;
+    }
+
+    /**
+     * Same as {@link #includePrefix(String)} but for a schema/owner other than {@link #TEST_SCHEMA}.
+     */
+    public static String includePrefix(String schema, String tableName) {
+        return getDBPrefix(schema) + tableName;
     }
 
     public static JdbcConfiguration adminJdbcConfig() {
@@ -103,6 +132,26 @@ public class TestHelper {
 
     public static JdbcConfiguration defaultJdbcConfig() {
         return adminJdbcConfig();
+    }
+
+    /**
+     * JDBC config identical to {@link #adminJdbcConfig()} except it authenticates as
+     * {@link #TEST_USER2} ({@value #TEST_USER2}), the secondary user/schema owner. Use this to set
+     * up tables owned by {@link #TEST_SCHEMA2} for mixed-owner test scenarios.
+     */
+    public static JdbcConfiguration secondaryUserJdbcConfig() {
+        return JdbcConfiguration.copy(adminJdbcConfig())
+                .with(JdbcConfiguration.USER, TEST_USER2)
+                .with(JdbcConfiguration.PASSWORD, TEST_PASSWORD2)
+                .build();
+    }
+
+    /**
+     * Connection authenticated as {@link #TEST_USER2}, for creating/writing to tables owned by
+     * {@link #TEST_SCHEMA2}. Caller is responsible for closing it.
+     */
+    public static IngresConnection secondaryUserConnection() {
+        return new IngresConnection(secondaryUserJdbcConfig());
     }
 
     /**
