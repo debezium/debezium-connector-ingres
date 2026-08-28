@@ -20,7 +20,6 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
@@ -119,7 +118,6 @@ public abstract class AbstractIngresDefaultValueIT extends AbstractAsyncEngineCo
     }
 
     @Test
-    @Disabled
     @FixFor("DBZ-4990")
     public void shouldHandleCharacterDefaultTypes() throws Exception {
         // Ingres only allows 1 column altered at a time
