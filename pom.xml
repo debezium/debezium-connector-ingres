@@ -9,7 +9,7 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>debezium-connector-ingres</artifactId>
-    <version>3.6.2.Final</version>
+    <version>3.6.3-SNAPSHOT</version>
     <name>Debezium Connector for Ingres Server</name>
     <packaging>jar</packaging>
 
@@ -17,7 +17,7 @@
         <connection>scm:git:git@github.com:debezium/debezium-connector-ingres.git</connection>
         <developerConnection>scm:git:git@github.com:debezium/debezium-connector-ingres.git</developerConnection>
         <url>https://github.com/debezium/debezium-connector-ingres</url>
-        <tag>v3.6.2.Final</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
